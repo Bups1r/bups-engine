@@ -36,7 +36,7 @@
       },
       "externalBin": [],
       "icon": [],
-      "identifier": "com.orcaengine.app",
+      "identifier": "com.bupsengine.app",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
@@ -65,7 +65,7 @@
         "fullscreen": false,
         "height": 800,
         "resizable": true,
-        "title": "Orca Engine",
+        "title": "Bups Engine",
         "width": 1400,
         "minWidth": 1000,
         "minHeight": 600

@@ -1,7 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:orcaengine.ai)",
       "Bash(where cargo:*)",
       "Bash(cargo --version:*)",
       "Bash(where:*)",
@@ -30,7 +29,8 @@
       "Bash(npm run build:*)",
       "Bash(timeout 10 npm run dev)",
       "Bash(git restore:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(findstr:*)"
     ]
   }
 }
