@@ -3,6 +3,7 @@ import { useChatStore } from '../stores/chatStore'
 import { useEngineStore } from '../stores/engineStore'
 import { invoke } from '@tauri-apps/api/tauri'
 import { listen } from '@tauri-apps/api/event'
+import { open } from '@tauri-apps/api/shell'
 import { contextBuilder } from '../engine/ai/ContextBuilder'
 
 export default function Chat() {
@@ -169,13 +170,31 @@ export default function Chat() {
           color: '#93c5fd',
           padding: '12px 16px',
           fontSize: '13px',
-          borderBottom: '1px solid #2563eb'
+          borderBottom: '1px solid #2563eb',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px'
         }}>
-          <strong>Claude CLI not found.</strong> AI Chat requires the Claude CLI.
-          <br />
-          <span style={{ opacity: 0.8, fontSize: '12px' }}>
-            Install from: https://claude.ai/download
-          </span>
+          <div>
+            <strong>Claude CLI not found.</strong> AI Chat requires the Claude CLI.
+          </div>
+          <button
+            onClick={() => open('https://claude.ai/download')}
+            style={{
+              background: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 500,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Install Claude CLI
+          </button>
         </div>
       )}
       <div className="chat-messages">
