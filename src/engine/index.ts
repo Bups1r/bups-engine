@@ -37,3 +37,11 @@ export type { KeyState, MouseButton, InputState, GamepadState } from './input/In
 // Assets
 export { AssetManager } from './assets/AssetManager'
 export type { Asset, AssetType, LoadProgress } from './assets/AssetManager'
+
+// Scripting
+export { ScriptComponent, Input, clearInputState, scriptTemplates, HotReload, getHotReload } from './scripting'
+export type { ScriptContext, CompiledScript, HotReloadConfig, HotReloadStatus, HotReloadEvent } from './scripting'
+
+// AI
+export { ContextBuilder, contextBuilder } from './ai/ContextBuilder'
+export type { EngineContext } from './ai/ContextBuilder'

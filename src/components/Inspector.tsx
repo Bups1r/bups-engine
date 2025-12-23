@@ -4,6 +4,7 @@ import { MeshRenderer } from '../engine/core/MeshRenderer'
 import { Light } from '../engine/core/Light'
 import { Camera } from '../engine/core/Camera'
 import { RigidBody } from '../engine/physics/RigidBody'
+import { ScriptComponent, scriptTemplates } from '../engine/scripting'
 import { useState, useEffect } from 'react'
 
 interface Vector3InputProps {
@@ -238,6 +239,96 @@ function CameraInspector({ camera }: { camera: Camera }) {
   )
 }
 
+function ScriptInspector({ script }: { script: ScriptComponent }) {
+  const [name, setName] = useState(script.scriptName)
+  const [code, setCode] = useState(script.sourceCode)
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState('')
+
+  const error = script.getError()
+
+  const handleCodeChange = (newCode: string) => {
+    setCode(newCode)
+    script.setSourceCode(newCode)
+  }
+
+  const handleNameChange = (newName: string) => {
+    setName(newName)
+    script.scriptName = newName
+  }
+
+  const applyTemplate = (templateName: string) => {
+    if (templateName && scriptTemplates[templateName as keyof typeof scriptTemplates]) {
+      const templateCode = scriptTemplates[templateName as keyof typeof scriptTemplates]
+      handleCodeChange(templateCode)
+      setSelectedTemplate('')
+    }
+  }
+
+  return (
+    <div className="component-inspector script-inspector">
+      <div
+        className="component-header"
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{ cursor: 'pointer' }}
+      >
+        <span>{isExpanded ? '▼' : '▶'} Script: {name}</span>
+        {error && <span className="script-error-badge">!</span>}
+      </div>
+
+      <div className="inspector-field">
+        <label>Name</label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => handleNameChange(e.target.value)}
+        />
+      </div>
+
+      <div className="inspector-field">
+        <label>Template</label>
+        <select
+          value={selectedTemplate}
+          onChange={(e) => applyTemplate(e.target.value)}
+        >
+          <option value="">Select template...</option>
+          <option value="empty">Empty Script</option>
+          <option value="rotator">Rotator</option>
+          <option value="playerController">Player Controller</option>
+          <option value="follower">Follower</option>
+          <option value="oscillator">Oscillator</option>
+        </select>
+      </div>
+
+      {error && (
+        <div className="script-error">
+          <strong>Error:</strong> {error}
+        </div>
+      )}
+
+      {isExpanded && (
+        <div className="script-code-editor">
+          <textarea
+            value={code}
+            onChange={(e) => handleCodeChange(e.target.value)}
+            placeholder="// Write your script here..."
+            spellCheck={false}
+          />
+        </div>
+      )}
+
+      <div className="inspector-field">
+        <label>Enabled</label>
+        <input
+          type="checkbox"
+          checked={script.enabled}
+          onChange={(e) => script.setEnabled(e.target.checked)}
+        />
+      </div>
+    </div>
+  )
+}
+
 export default function Inspector() {
   const { selectedEntity } = useEngineStore()
 
@@ -257,6 +348,15 @@ export default function Inspector() {
   const light = selectedEntity.getComponent(Light)
   const camera = selectedEntity.getComponent(Camera)
   const rigidBody = selectedEntity.getComponent(RigidBody)
+
+  // Get all script components
+  const scripts = selectedEntity.getAllComponents().filter(
+    (c): c is ScriptComponent => c instanceof ScriptComponent
+  )
+
+  const addScript = () => {
+    selectedEntity.addComponent(ScriptComponent, 'NewScript', scriptTemplates.empty)
+  }
 
   return (
     <div className="inspector-panel">
@@ -325,6 +425,14 @@ export default function Inspector() {
           </div>
         </div>
       )}
+
+      {scripts.map((script, index) => (
+        <ScriptInspector key={`script-${index}`} script={script} />
+      ))}
+
+      <button className="add-component-btn" onClick={addScript}>
+        + Add Script
+      </button>
 
       <style>{inspectorStyles}</style>
     </div>
@@ -435,5 +543,74 @@ const inspectorStyles = `
     color: var(--text-primary);
     font-size: 12px;
     width: 60px;
+  }
+  .add-component-btn {
+    width: 100%;
+    padding: 10px;
+    background: var(--bg-tertiary);
+    border: 1px dashed var(--border-color);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    margin-top: 8px;
+  }
+  .add-component-btn:hover {
+    background: var(--accent);
+    border-style: solid;
+    color: white;
+  }
+  .script-inspector .component-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .script-error-badge {
+    background: #dc2626;
+    color: white;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+  }
+  .script-error {
+    padding: 8px 12px;
+    background: rgba(220, 38, 38, 0.2);
+    color: #fca5a5;
+    font-size: 11px;
+    border-left: 3px solid #dc2626;
+  }
+  .script-code-editor {
+    padding: 8px;
+  }
+  .script-code-editor textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 12px;
+    background: #1a1a2e;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  .script-code-editor textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .inspector-field select {
+    flex: 1;
+    padding: 4px 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 12px;
   }
 `

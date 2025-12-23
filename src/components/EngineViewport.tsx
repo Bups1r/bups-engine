@@ -7,6 +7,7 @@ import { Transform } from '../engine/core/Transform'
 import { Light } from '../engine/core/Light'
 import { MeshRenderer } from '../engine/core/MeshRenderer'
 import { TransformGizmo, commandHistory, TransformCommand } from '../engine/editor'
+import { getHotReload } from '../engine/scripting/HotReload'
 import { useEngineStore } from '../stores/engineStore'
 import { Entity } from '../engine/ecs/Entity'
 
@@ -101,6 +102,13 @@ export default function EngineViewport() {
 
     // Create default scene
     setupDefaultScene(engine)
+
+    // Initialize hot reload system
+    const hotReload = getHotReload({
+      pollInterval: 1000,
+      enabled: true
+    })
+    hotReload.initialize(engine.world)
 
     // Store engine
     setEngine(engine)
@@ -228,6 +236,7 @@ export default function EngineViewport() {
       engine.offUpdate(updateOrbit)
       gizmo.dispose()
       orbitControls.dispose()
+      hotReload.dispose()
       engine.dispose()
     }
   }, [initialized, setEngine, setPlaying, updateStats])

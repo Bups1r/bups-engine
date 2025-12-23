@@ -1,5 +1,6 @@
 import MonacoEditor from '@monaco-editor/react'
 import { useProjectStore, FileNode } from '../stores/projectStore'
+import { getHotReload } from '../engine/scripting/HotReload'
 
 function findFileContent(files: FileNode[], path: string): string | undefined {
   for (const file of files) {
@@ -46,6 +47,24 @@ export default function Editor() {
   const handleChange = (value: string | undefined) => {
     if (activeFile && value !== undefined) {
       updateFileContent(activeFile, value)
+
+      // Check if this is a script file and trigger hot reload
+      if (activeFile.endsWith('.js') || activeFile.endsWith('.ts')) {
+        const scriptName = activeFile.split('/').pop()?.replace(/\.(js|ts)$/, '') || ''
+        const hotReload = getHotReload()
+
+        // Only reload if the script is being watched
+        if (hotReload.isWatching(scriptName)) {
+          // Debounce the reload to avoid too many reloads while typing
+          if ((window as any).__hotReloadTimeout) {
+            clearTimeout((window as any).__hotReloadTimeout)
+          }
+
+          (window as any).__hotReloadTimeout = setTimeout(() => {
+            hotReload.reloadScript(scriptName, value)
+          }, 500) // Wait 500ms after user stops typing
+        }
+      }
     }
   }
 

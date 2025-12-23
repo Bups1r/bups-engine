@@ -6,6 +6,8 @@ import Hierarchy from './components/Hierarchy'
 import Inspector from './components/Inspector'
 import Chat from './components/Chat'
 import AssetBrowser from './components/AssetBrowser'
+import ExportDialog from './components/ExportDialog'
+import HotReloadStatus from './components/HotReloadStatus'
 import { useProjectStore } from './stores/projectStore'
 import { useHistoryStore } from './stores/historyStore'
 
@@ -17,6 +19,7 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('viewport')
   const [leftPanel, setLeftPanel] = useState<LeftPanel>('hierarchy')
   const [rightPanel, setRightPanel] = useState<RightPanel>('inspector')
+  const [showExportDialog, setShowExportDialog] = useState(false)
   const projectName = useProjectStore((s) => s.projectName)
   const { canUndo, canRedo, undo, redo } = useHistoryStore()
 
@@ -69,6 +72,14 @@ function App() {
           </button>
         </div>
         <div style={{ flex: 1 }} />
+        <HotReloadStatus />
+        <button
+          className="export-btn"
+          onClick={() => setShowExportDialog(true)}
+          title="Export Game"
+        >
+          Export
+        </button>
         <div className="status-dot" title="Engine Running" />
       </div>
 
@@ -161,6 +172,9 @@ function App() {
         </div>
       </div>
 
+      {/* Export Dialog */}
+      {showExportDialog && <ExportDialog onClose={() => setShowExportDialog(false)} />}
+
       <style>{`
         .panel-tabs {
           display: flex;
@@ -209,6 +223,22 @@ function App() {
         .titlebar-btn.disabled {
           opacity: 0.4;
           cursor: not-allowed;
+        }
+        .export-btn {
+          background: var(--accent);
+          border: 1px solid var(--accent);
+          color: white;
+          padding: 6px 16px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 500;
+          margin-right: 12px;
+          transition: all 0.15s ease;
+        }
+        .export-btn:hover {
+          opacity: 0.9;
+          transform: translateY(-1px);
         }
       `}</style>
     </div>
