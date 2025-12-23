@@ -10,9 +10,11 @@ interface Vector3InputProps {
   label: string
   value: { x: number; y: number; z: number }
   onChange: (value: { x: number; y: number; z: number }) => void
+  onFocus?: () => void
+  onBlur?: () => void
 }
 
-function Vector3Input({ label, value, onChange }: Vector3InputProps) {
+function Vector3Input({ label, value, onChange, onFocus, onBlur }: Vector3InputProps) {
   return (
     <div className="vector3-input">
       <label>{label}</label>
@@ -22,18 +24,24 @@ function Vector3Input({ label, value, onChange }: Vector3InputProps) {
           step="0.1"
           value={value.x.toFixed(2)}
           onChange={(e) => onChange({ ...value, x: parseFloat(e.target.value) || 0 })}
+          onFocus={onFocus}
+          onBlur={onBlur}
         />
         <input
           type="number"
           step="0.1"
           value={value.y.toFixed(2)}
           onChange={(e) => onChange({ ...value, y: parseFloat(e.target.value) || 0 })}
+          onFocus={onFocus}
+          onBlur={onBlur}
         />
         <input
           type="number"
           step="0.1"
           value={value.z.toFixed(2)}
           onChange={(e) => onChange({ ...value, z: parseFloat(e.target.value) || 0 })}
+          onFocus={onFocus}
+          onBlur={onBlur}
         />
       </div>
     </div>
@@ -44,16 +52,28 @@ function TransformInspector({ transform }: { transform: Transform }) {
   const [pos, setPos] = useState({ x: 0, y: 0, z: 0 })
   const [rot, setRot] = useState({ x: 0, y: 0, z: 0 })
   const [scale, setScale] = useState({ x: 1, y: 1, z: 1 })
+  const [isEditing, setIsEditing] = useState(false)
 
+  // Sync from transform when not editing (for gizmo updates)
   useEffect(() => {
-    setPos({ x: transform.position.x, y: transform.position.y, z: transform.position.z })
-    setRot({
-      x: transform.rotation.x * (180 / Math.PI),
-      y: transform.rotation.y * (180 / Math.PI),
-      z: transform.rotation.z * (180 / Math.PI)
-    })
-    setScale({ x: transform.scale.x, y: transform.scale.y, z: transform.scale.z })
-  }, [transform])
+    if (isEditing) return
+
+    const syncFromTransform = () => {
+      setPos({ x: transform.position.x, y: transform.position.y, z: transform.position.z })
+      setRot({
+        x: transform.rotation.x * (180 / Math.PI),
+        y: transform.rotation.y * (180 / Math.PI),
+        z: transform.rotation.z * (180 / Math.PI)
+      })
+      setScale({ x: transform.scale.x, y: transform.scale.y, z: transform.scale.z })
+    }
+
+    syncFromTransform()
+
+    // Poll for gizmo updates
+    const interval = setInterval(syncFromTransform, 50)
+    return () => clearInterval(interval)
+  }, [transform, isEditing])
 
   const updatePosition = (value: { x: number; y: number; z: number }) => {
     setPos(value)
@@ -74,12 +94,33 @@ function TransformInspector({ transform }: { transform: Transform }) {
     transform.setScale(value.x, value.y, value.z)
   }
 
+  const startEditing = () => setIsEditing(true)
+  const stopEditing = () => setIsEditing(false)
+
   return (
     <div className="component-inspector">
       <div className="component-header">Transform</div>
-      <Vector3Input label="Position" value={pos} onChange={updatePosition} />
-      <Vector3Input label="Rotation" value={rot} onChange={updateRotation} />
-      <Vector3Input label="Scale" value={scale} onChange={updateScale} />
+      <Vector3Input
+        label="Position"
+        value={pos}
+        onChange={updatePosition}
+        onFocus={startEditing}
+        onBlur={stopEditing}
+      />
+      <Vector3Input
+        label="Rotation"
+        value={rot}
+        onChange={updateRotation}
+        onFocus={startEditing}
+        onBlur={stopEditing}
+      />
+      <Vector3Input
+        label="Scale"
+        value={scale}
+        onChange={updateScale}
+        onFocus={startEditing}
+        onBlur={stopEditing}
+      />
     </div>
   )
 }
@@ -199,12 +240,6 @@ function CameraInspector({ camera }: { camera: Camera }) {
 
 export default function Inspector() {
   const { selectedEntity } = useEngineStore()
-  const [, forceUpdate] = useState({})
-
-  useEffect(() => {
-    const interval = setInterval(() => forceUpdate({}), 100)
-    return () => clearInterval(interval)
-  }, [])
 
   if (!selectedEntity) {
     return (
