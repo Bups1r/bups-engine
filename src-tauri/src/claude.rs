@@ -1,13 +1,49 @@
 use std::process::Stdio;
+use std::path::PathBuf;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tauri::Window;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+/// Find the Claude CLI executable
+fn find_claude_executable() -> Option<PathBuf> {
+    // Try common installation locations on Windows
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        // npm global install location
+        let npm_path = PathBuf::from(&appdata).join("npm").join("claude.cmd");
+        if npm_path.exists() {
+            return Some(npm_path);
+        }
+    }
+
+    if let Ok(localappdata) = std::env::var("LOCALAPPDATA") {
+        // Possible standalone install location
+        let local_path = PathBuf::from(&localappdata).join("Programs").join("claude").join("claude.exe");
+        if local_path.exists() {
+            return Some(local_path);
+        }
+    }
+
+    if let Ok(userprofile) = std::env::var("USERPROFILE") {
+        // npm global install in user profile
+        let user_npm = PathBuf::from(&userprofile).join("AppData").join("Roaming").join("npm").join("claude.cmd");
+        if user_npm.exists() {
+            return Some(user_npm);
+        }
+    }
+
+    // Fall back to hoping it's in PATH
+    None
+}
+
 /// Send a message to Claude CLI and get the response
 pub async fn send_message_to_claude(message: &str) -> Result<String, String> {
-    let mut cmd = Command::new("claude");
+    let claude_path = find_claude_executable();
+    let mut cmd = match &claude_path {
+        Some(path) => Command::new(path),
+        None => Command::new("claude"),
+    };
 
     // Use print mode for single-shot queries
     cmd.arg("--print");
@@ -46,7 +82,11 @@ pub async fn stream_message_to_claude(
     message: String,
     cancel_flag: Arc<Mutex<bool>>,
 ) -> Result<String, String> {
-    let mut cmd = Command::new("claude");
+    let claude_path = find_claude_executable();
+    let mut cmd = match &claude_path {
+        Some(path) => Command::new(path),
+        None => Command::new("claude"),
+    };
 
     // Use print mode for streaming
     cmd.arg("--print");
