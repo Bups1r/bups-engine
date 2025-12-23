@@ -1,1 +1,2 @@
-export { RenderSystem, RenderSettings, PostProcessingSettings } from './RenderSystem'
+export { RenderSystem } from './RenderSystem'
+export type { RenderSettings, PostProcessingSettings } from './RenderSystem'

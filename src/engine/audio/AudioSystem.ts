@@ -38,7 +38,7 @@ export class AudioListener extends Component {
 }
 
 export class AudioSource extends Component {
-  private _sound: THREE.PositionalAudio | THREE.Audio | null = null
+  private _sound: THREE.PositionalAudio | THREE.Audio<GainNode> | null = null
   private _listener: THREE.AudioListener | null = null
 
   public volume: number = 1
@@ -63,16 +63,16 @@ export class AudioSource extends Component {
   setListener(listener: THREE.AudioListener): void {
     this._listener = listener
     if (this.spatial) {
-      this._sound = new THREE.PositionalAudio(listener)
-      const positionalSound = this._sound as THREE.PositionalAudio
+      const positionalSound = new THREE.PositionalAudio(listener)
       positionalSound.setRefDistance(this.minDistance)
       positionalSound.setMaxDistance(this.maxDistance)
       positionalSound.setRolloffFactor(this.rolloffFactor)
+      this._sound = positionalSound
     } else {
-      this._sound = new THREE.Audio(listener)
+      this._sound = new THREE.Audio(listener) as THREE.Audio<GainNode>
     }
-    this._sound.setVolume(this.volume)
-    this._sound.setLoop(this.loop)
+    this._sound!.setVolume(this.volume)
+    this._sound!.setLoop(this.loop)
   }
 
   async loadAudio(url: string): Promise<void> {

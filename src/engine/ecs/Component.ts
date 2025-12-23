@@ -1,7 +1,7 @@
 import { Entity } from './Entity'
 
 export interface ComponentClass<T extends Component = Component> {
-  new (entity: Entity, ...args: unknown[]): T
+  new (entity: Entity, ...args: any[]): T
   readonly name: string
 }
 

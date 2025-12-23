@@ -14,7 +14,8 @@ export class Transform extends Component {
 
   constructor(entity: Entity) {
     super(entity)
-    this._rotation.onChange(() => {
+    // @ts-ignore - Three.js internal API for listening to Euler changes
+    this._rotation._onChange(() => {
       this._quaternion.setFromEuler(this._rotation)
       this._matrixNeedsUpdate = true
     })

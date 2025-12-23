@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
+// @ts-ignore - Three.js examples have limited type support
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { Engine } from '../engine'
 import { Transform } from '../engine/core/Transform'
 import { Light } from '../engine/core/Light'
 import { MeshRenderer } from '../engine/core/MeshRenderer'
-import { TransformGizmo, GizmoMode } from '../engine/editor'
+import { TransformGizmo } from '../engine/editor'
 import { useEngineStore } from '../stores/engineStore'
 
 export default function EngineViewport() {

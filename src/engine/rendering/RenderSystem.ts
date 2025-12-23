@@ -1,8 +1,13 @@
 import * as THREE from 'three'
+// @ts-ignore - Three.js examples have limited type support
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer'
+// @ts-ignore - Three.js examples have limited type support
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass'
+// @ts-ignore - Three.js examples have limited type support
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass'
+// @ts-ignore - Three.js examples have limited type support
 import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass'
+// @ts-ignore - Three.js examples have limited type support
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass'
 import { System } from '../ecs/System'
 import { World } from '../ecs/World'

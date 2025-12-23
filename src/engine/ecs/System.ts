@@ -1,5 +1,5 @@
 import { Entity } from './Entity'
-import { Component, ComponentClass } from './Component'
+import type { ComponentClass } from './Component'
 import { World } from './World'
 
 export abstract class System {

@@ -1,1 +1,2 @@
-export { AssetManager, Asset, AssetType, LoadProgress } from './AssetManager'
+export { AssetManager } from './AssetManager'
+export type { Asset, AssetType, LoadProgress } from './AssetManager'

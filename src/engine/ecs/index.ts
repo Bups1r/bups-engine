@@ -1,4 +1,5 @@
 export { Entity } from './Entity'
-export { Component, ComponentClass } from './Component'
+export { Component } from './Component'
+export type { ComponentClass } from './Component'
 export { System, SystemManager } from './System'
 export { World } from './World'

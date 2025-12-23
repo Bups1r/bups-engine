@@ -1,5 +1,7 @@
 import * as THREE from 'three'
+// @ts-ignore - Three.js examples have limited type support
 import { GLTFLoader, GLTF } from 'three/examples/jsm/loaders/GLTFLoader'
+// @ts-ignore - Three.js examples have limited type support
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader'
 
 export type AssetType = 'texture' | 'model' | 'audio' | 'json' | 'binary'
@@ -27,8 +29,6 @@ class AssetManagerClass {
   private audioLoader: THREE.AudioLoader
   private fileLoader: THREE.FileLoader
 
-  private loadingQueue: string[] = []
-  private isLoading: boolean = false
   private onProgressCallbacks: ((progress: LoadProgress) => void)[] = []
 
   constructor() {
@@ -67,7 +67,7 @@ class AssetManagerClass {
     return new Promise((resolve, reject) => {
       this.gltfLoader.load(
         url,
-        (gltf) => {
+        (gltf: GLTF) => {
           this.assets.set(id, { id, type: 'model', url, data: gltf, loaded: true })
           resolve(gltf)
         },

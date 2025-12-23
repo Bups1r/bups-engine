@@ -1,4 +1,6 @@
 export { Transform } from './Transform'
-export { Camera, CameraType } from './Camera'
+export { Camera } from './Camera'
+export type { CameraType } from './Camera'
 export { MeshRenderer } from './MeshRenderer'
-export { Light, LightType } from './Light'
+export { Light } from './Light'
+export type { LightType } from './Light'

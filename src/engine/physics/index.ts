@@ -1,2 +1,4 @@
-export { RigidBody, RigidBodyType, ColliderShape, ColliderConfig } from './RigidBody'
-export { PhysicsSystem, CollisionInfo, RaycastHit } from './PhysicsSystem'
+export { RigidBody } from './RigidBody'
+export type { RigidBodyType, ColliderShape, ColliderConfig } from './RigidBody'
+export { PhysicsSystem } from './PhysicsSystem'
+export type { CollisionInfo, RaycastHit } from './PhysicsSystem'

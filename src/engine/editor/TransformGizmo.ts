@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+// @ts-ignore - Three.js examples have limited type support
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls'
 import { Entity } from '../ecs/Entity'
 import { Transform } from '../core/Transform'
@@ -15,7 +16,6 @@ export interface TransformGizmoEvents {
 
 export class TransformGizmo {
   private controls: TransformControls
-  private camera: THREE.Camera
   private domElement: HTMLElement
   private scene: THREE.Scene
 
@@ -33,7 +33,6 @@ export class TransformGizmo {
     domElement: HTMLElement,
     scene: THREE.Scene
   ) {
-    this.camera = camera
     this.domElement = domElement
     this.scene = scene
 
@@ -46,7 +45,7 @@ export class TransformGizmo {
     this.scene.add(this.controls.getHelper())
 
     // Set up event listeners
-    this.controls.addEventListener('dragging-changed', (event) => {
+    this.controls.addEventListener('dragging-changed', (event: { value: boolean }) => {
       // Disable orbit controls while dragging
       const customEvent = new CustomEvent('gizmo-dragging', {
         detail: { dragging: event.value }
@@ -164,7 +163,6 @@ export class TransformGizmo {
   }
 
   updateCamera(camera: THREE.Camera): void {
-    this.camera = camera
     this.controls.camera = camera
   }
 
