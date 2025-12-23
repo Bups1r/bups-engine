@@ -25,7 +25,12 @@
       "Bash(git init:*)",
       "Bash(git commit:*)",
       "Bash(gh repo create:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 10 npm run dev)",
+      "Bash(git restore:*)",
+      "Bash(dir:*)"
     ]
   }
 }
