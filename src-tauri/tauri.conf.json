@@ -35,7 +35,7 @@
         "depends": []
       },
       "externalBin": [],
-      "icon": [],
+      "icon": ["icons/icon.ico"],
       "identifier": "com.bupsengine.app",
       "longDescription": "",
       "macOS": {
