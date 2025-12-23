@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:orcaengine.ai)",
+      "Bash(where cargo:*)",
+      "Bash(cargo --version:*)",
+      "Bash(where:*)",
+      "Bash(node --version)",
+      "Bash(npm --version:*)",
+      "Bash(rustc:*)",
+      "Bash(cmd /c \"C:\\\\Users\\\\camod\\\\.cargo\\\\bin\\\\cargo.exe --version\")",
+      "Bash(\"C:\\\\Users\\\\camod\\\\.cargo\\\\bin\\\\cargo.exe\" --version)",
+      "Bash(npm create:*)",
+      "Bash(npm init:*)",
+      "Bash(npm install)",
+      "Bash(npx tauri icon --help:*)",
+      "Bash(curl:*)",
+      "Bash(PATH=\"$HOME/.cargo/bin:$PATH\" npm run tauri:dev:*)",
+      "Bash(cat:*)",
+      "Bash(node scripts/generate-icon.js:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(cmd.exe /c \"taskkill /F /PID 64400\")",
+      "Bash(cmd.exe /c \"taskkill /F /PID 66368\")",
+      "Bash(git init:*)",
+      "Bash(git commit:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

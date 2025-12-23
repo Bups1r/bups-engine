@@ -1,14 +1,20 @@
 import { useState } from 'react'
 import FileTree from './components/FileTree'
 import Editor from './components/Editor'
-import Viewport from './components/Viewport'
+import EngineViewport from './components/EngineViewport'
+import Hierarchy from './components/Hierarchy'
+import Inspector from './components/Inspector'
 import Chat from './components/Chat'
 import { useProjectStore } from './stores/projectStore'
 
 type ViewMode = 'viewport' | 'editor' | 'split'
+type LeftPanel = 'files' | 'hierarchy'
+type RightPanel = 'chat' | 'inspector'
 
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('viewport')
+  const [leftPanel, setLeftPanel] = useState<LeftPanel>('hierarchy')
+  const [rightPanel, setRightPanel] = useState<RightPanel>('inspector')
   const projectName = useProjectStore((s) => s.projectName)
 
   return (
@@ -20,14 +26,28 @@ function App() {
           {projectName || 'Untitled Project'}
         </span>
         <div style={{ flex: 1 }} />
-        <div className="status-dot" title="Claude Connected" />
+        <div className="status-dot" title="Engine Running" />
       </div>
 
-      {/* File Tree Panel */}
+      {/* Left Panel */}
       <div className="panel">
-        <div className="panel-header">Project Files</div>
+        <div className="panel-tabs">
+          <div
+            className={`panel-tab ${leftPanel === 'hierarchy' ? 'active' : ''}`}
+            onClick={() => setLeftPanel('hierarchy')}
+          >
+            Hierarchy
+          </div>
+          <div
+            className={`panel-tab ${leftPanel === 'files' ? 'active' : ''}`}
+            onClick={() => setLeftPanel('files')}
+          >
+            Files
+          </div>
+        </div>
         <div className="panel-content">
-          <FileTree />
+          {leftPanel === 'hierarchy' && <Hierarchy />}
+          {leftPanel === 'files' && <FileTree />}
         </div>
       </div>
 
@@ -54,12 +74,12 @@ function App() {
           </div>
         </div>
         <div className="viewport-content">
-          {viewMode === 'viewport' && <Viewport />}
+          {viewMode === 'viewport' && <EngineViewport />}
           {viewMode === 'editor' && <Editor />}
           {viewMode === 'split' && (
             <div style={{ display: 'flex', height: '100%' }}>
               <div style={{ flex: 1, borderRight: '1px solid var(--border-color)' }}>
-                <Viewport />
+                <EngineViewport />
               </div>
               <div style={{ flex: 1 }}>
                 <Editor />
@@ -69,13 +89,51 @@ function App() {
         </div>
       </div>
 
-      {/* Chat Panel */}
+      {/* Right Panel */}
       <div className="panel">
-        <div className="panel-header">AI Assistant</div>
+        <div className="panel-tabs">
+          <div
+            className={`panel-tab ${rightPanel === 'inspector' ? 'active' : ''}`}
+            onClick={() => setRightPanel('inspector')}
+          >
+            Inspector
+          </div>
+          <div
+            className={`panel-tab ${rightPanel === 'chat' ? 'active' : ''}`}
+            onClick={() => setRightPanel('chat')}
+          >
+            AI Chat
+          </div>
+        </div>
         <div className="panel-content">
-          <Chat />
+          {rightPanel === 'inspector' && <Inspector />}
+          {rightPanel === 'chat' && <Chat />}
         </div>
       </div>
+
+      <style>{`
+        .panel-tabs {
+          display: flex;
+          background: var(--bg-secondary);
+          border-bottom: 1px solid var(--border-color);
+        }
+        .panel-tab {
+          padding: 8px 12px;
+          font-size: 11px;
+          cursor: pointer;
+          color: var(--text-secondary);
+          border-bottom: 2px solid transparent;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .panel-tab:hover {
+          color: var(--text-primary);
+        }
+        .panel-tab.active {
+          color: var(--accent);
+          border-bottom-color: var(--accent);
+        }
+      `}</style>
     </div>
   )
 }
