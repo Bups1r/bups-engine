@@ -5,11 +5,12 @@ import EngineViewport from './components/EngineViewport'
 import Hierarchy from './components/Hierarchy'
 import Inspector from './components/Inspector'
 import Chat from './components/Chat'
+import AssetBrowser from './components/AssetBrowser'
 import { useProjectStore } from './stores/projectStore'
 import { useHistoryStore } from './stores/historyStore'
 
 type ViewMode = 'viewport' | 'editor' | 'split'
-type LeftPanel = 'files' | 'hierarchy'
+type LeftPanel = 'files' | 'hierarchy' | 'assets'
 type RightPanel = 'chat' | 'inspector'
 
 function App() {
@@ -81,6 +82,12 @@ function App() {
             Hierarchy
           </div>
           <div
+            className={`panel-tab ${leftPanel === 'assets' ? 'active' : ''}`}
+            onClick={() => setLeftPanel('assets')}
+          >
+            Assets
+          </div>
+          <div
             className={`panel-tab ${leftPanel === 'files' ? 'active' : ''}`}
             onClick={() => setLeftPanel('files')}
           >
@@ -89,6 +96,7 @@ function App() {
         </div>
         <div className="panel-content">
           {leftPanel === 'hierarchy' && <Hierarchy />}
+          {leftPanel === 'assets' && <AssetBrowser />}
           {leftPanel === 'files' && <FileTree />}
         </div>
       </div>
