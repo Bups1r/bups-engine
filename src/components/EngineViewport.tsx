@@ -22,6 +22,7 @@ export default function EngineViewport() {
 
   const {
     setEngine,
+    clearEngine,
     updateStats,
     isPlaying,
     setPlaying,
@@ -34,6 +35,7 @@ export default function EngineViewport() {
   } = useEngineStore()
 
   const [initialized, setInitialized] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Keyboard shortcuts for gizmo modes
   useEffect(() => {
@@ -94,152 +96,180 @@ export default function EngineViewport() {
   useEffect(() => {
     if (!canvasRef.current || initialized) return
 
-    const engine = new Engine({
-      canvas: canvasRef.current,
-      antialias: true,
-      shadows: true
-    })
+    let engine: Engine
+    let hotReload: ReturnType<typeof getHotReload>
+    let orbitControls: OrbitControls
+    let gizmo: TransformGizmo
+    let statsInterval: ReturnType<typeof setInterval>
+    let resizeObserver: ResizeObserver
+    let threeCamera: THREE.Camera
 
-    // Create default scene
-    setupDefaultScene(engine)
+    try {
+      engine = new Engine({
+        canvas: canvasRef.current,
+        antialias: true,
+        shadows: true
+      })
 
-    // Initialize hot reload system
-    const hotReload = getHotReload({
-      pollInterval: 1000,
-      enabled: true
-    })
-    hotReload.initialize(engine.world)
+      // Create default scene
+      setupDefaultScene(engine)
 
-    // Store engine
-    setEngine(engine)
-    setInitialized(true)
+      // Initialize hot reload system
+      hotReload = getHotReload({
+        pollInterval: 1000,
+        enabled: true
+      })
+      hotReload.initialize(engine.world)
 
-    // Get camera and scene for gizmo/orbit controls
-    const scene = engine.renderSystem.getScene()
-    const renderer = engine.renderSystem.getRenderer()
+      // Store engine
+      setEngine(engine)
+      setInitialized(true)
 
-    // Find the main camera
-    const cameraEntities = engine.world.getEntitiesWithTag('camera')
-    let threeCamera: THREE.Camera | null = null
+      // Get camera and scene for gizmo/orbit controls
+      const scene = engine.renderSystem.getScene()
+      const renderer = engine.renderSystem.getRenderer()
 
-    for (const camEntity of cameraEntities) {
-      const camComp = camEntity.getComponent(Transform)
-      if (camComp) {
-        // Create an editor camera that mirrors the main camera
-        const editorCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000)
-        editorCamera.position.set(5, 5, 5)
-        editorCamera.lookAt(0, 0, 0)
-        threeCamera = editorCamera
-        scene.add(editorCamera)
-        break
-      }
-    }
+      // Find the main camera
+      const cameraEntities = engine.world.getEntitiesWithTag('camera')
 
-    if (!threeCamera) {
-      // Fallback camera
-      threeCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000)
-      threeCamera.position.set(5, 5, 5)
-      threeCamera.lookAt(0, 0, 0)
-      scene.add(threeCamera)
-    }
-
-    // Create orbit controls
-    const orbitControls = new OrbitControls(threeCamera, renderer.domElement)
-    orbitControls.enableDamping = true
-    orbitControls.dampingFactor = 0.1
-    orbitControls.target.set(0, 0, 0)
-    orbitRef.current = orbitControls
-
-    // Create transform gizmo
-    const gizmo = new TransformGizmo(threeCamera, renderer.domElement, scene)
-    gizmoRef.current = gizmo
-
-    // Set up transform events for undo/redo
-    gizmo.setEvents({
-      onTransformStart: (entity: Entity) => {
-        const transform = entity.getComponent(Transform)
-        if (transform) {
-          transformStartState = {
-            position: transform.position.clone(),
-            rotation: transform.rotation.clone(),
-            scale: transform.scale.clone()
-          }
-        }
-      },
-      onTransformEnd: (entity: Entity) => {
-        const transform = entity.getComponent(Transform)
-        if (transform && transformStartState) {
-          const newState = {
-            position: transform.position.clone(),
-            rotation: transform.rotation.clone(),
-            scale: transform.scale.clone()
-          }
-
-          // Only create command if something actually changed
-          if (
-            !transformStartState.position.equals(newState.position) ||
-            !transformStartState.rotation.equals(newState.rotation) ||
-            !transformStartState.scale.equals(newState.scale)
-          ) {
-            const command = new TransformCommand(entity, transformStartState, newState)
-            // Use push - transform is already applied, just add to history
-            commandHistory.push(command)
-          }
-          transformStartState = null
+      for (const camEntity of cameraEntities) {
+        const camComp = camEntity.getComponent(Transform)
+        if (camComp) {
+          // Create an editor camera that mirrors the main camera
+          const editorCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000)
+          editorCamera.position.set(5, 5, 5)
+          editorCamera.lookAt(0, 0, 0)
+          threeCamera = editorCamera
+          scene.add(editorCamera)
+          break
         }
       }
-    })
 
-    // Disable orbit controls while dragging gizmo
-    renderer.domElement.addEventListener('gizmo-dragging', ((e: CustomEvent) => {
-      orbitControls.enabled = !e.detail.dragging
-    }) as EventListener)
+      if (!threeCamera!) {
+        // Fallback camera
+        threeCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000)
+        threeCamera.position.set(5, 5, 5)
+        threeCamera.lookAt(0, 0, 0)
+        scene.add(threeCamera)
+      }
 
-    // Start engine
-    engine.start()
-    setPlaying(true)
+      // Create orbit controls
+      orbitControls = new OrbitControls(threeCamera, renderer.domElement)
+      orbitControls.enableDamping = true
+      orbitControls.dampingFactor = 0.1
+      orbitControls.target.set(0, 0, 0)
+      orbitRef.current = orbitControls
 
-    // Update loop for orbit controls
-    const updateOrbit = () => {
-      orbitControls.update()
-    }
-    engine.onUpdate(updateOrbit)
+      // Create transform gizmo
+      gizmo = new TransformGizmo(threeCamera, renderer.domElement, scene)
+      gizmoRef.current = gizmo
 
-    // Update stats
-    const statsInterval = setInterval(() => {
-      updateStats()
-    }, 500)
+      // Set up transform events for undo/redo
+      gizmo.setEvents({
+        onTransformStart: (entity: Entity) => {
+          const transform = entity.getComponent(Transform)
+          if (transform) {
+            transformStartState = {
+              position: transform.position.clone(),
+              rotation: transform.rotation.clone(),
+              scale: transform.scale.clone()
+            }
+          }
+        },
+        onTransformEnd: (entity: Entity) => {
+          const transform = entity.getComponent(Transform)
+          if (transform && transformStartState) {
+            const newState = {
+              position: transform.position.clone(),
+              rotation: transform.rotation.clone(),
+              scale: transform.scale.clone()
+            }
 
-    // Handle resize
-    const handleResize = () => {
-      if (containerRef.current && engine) {
-        const { clientWidth, clientHeight } = containerRef.current
-        engine.setSize(clientWidth, clientHeight)
+            // Only create command if something actually changed
+            if (
+              !transformStartState.position.equals(newState.position) ||
+              !transformStartState.rotation.equals(newState.rotation) ||
+              !transformStartState.scale.equals(newState.scale)
+            ) {
+              const command = new TransformCommand(entity, transformStartState, newState)
+              // Use push - transform is already applied, just add to history
+              commandHistory.push(command)
+            }
+            transformStartState = null
+          }
+        }
+      })
 
-        if (threeCamera instanceof THREE.PerspectiveCamera) {
-          threeCamera.aspect = clientWidth / clientHeight
-          threeCamera.updateProjectionMatrix()
+      // Disable orbit controls while dragging gizmo
+      renderer.domElement.addEventListener('gizmo-dragging', ((e: CustomEvent) => {
+        orbitControls.enabled = !e.detail.dragging
+      }) as EventListener)
+
+      // Start engine
+      engine.start()
+      setPlaying(true)
+
+      // Update loop for orbit controls
+      const updateOrbit = () => {
+        orbitControls.update()
+      }
+      engine.onUpdate(updateOrbit)
+
+      // Update stats
+      statsInterval = setInterval(() => {
+        updateStats()
+      }, 500)
+
+      // Handle resize
+      const handleResize = () => {
+        if (containerRef.current && engine) {
+          const { clientWidth, clientHeight } = containerRef.current
+          engine.setSize(clientWidth, clientHeight)
+
+          if (threeCamera instanceof THREE.PerspectiveCamera) {
+            threeCamera.aspect = clientWidth / clientHeight
+            threeCamera.updateProjectionMatrix()
+          }
         }
       }
-    }
 
-    const resizeObserver = new ResizeObserver(handleResize)
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current)
-    }
+      resizeObserver = new ResizeObserver(handleResize)
+      if (containerRef.current) {
+        resizeObserver.observe(containerRef.current)
+      }
 
-    handleResize()
+      handleResize()
 
-    return () => {
-      clearInterval(statsInterval)
-      resizeObserver.disconnect()
-      engine.offUpdate(updateOrbit)
-      gizmo.dispose()
-      orbitControls.dispose()
-      hotReload.dispose()
-      engine.dispose()
+      return () => {
+        clearInterval(statsInterval)
+        resizeObserver?.disconnect()
+        engine.offUpdate(updateOrbit)
+        gizmo?.dispose()
+        orbitControls?.dispose()
+        hotReload?.dispose()
+        engine.dispose()
+        clearEngine()
+        setInitialized(false)
+      }
+    } catch (err) {
+      const errorMsg = `Engine error: ${err instanceof Error ? err.message : String(err)}`
+      console.error('Engine error:', err)
+      setError(errorMsg)
+      return
     }
-  }, [initialized, setEngine, setPlaying, updateStats])
+  }, [initialized, setEngine, clearEngine, setPlaying, updateStats])
+
+  // Show error if engine failed
+  if (error) {
+    return (
+      <div className="engine-viewport" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', padding: 20 }}>
+        <div style={{ color: '#ef4444', fontSize: 18, marginBottom: 10 }}>Engine Error</div>
+        <div style={{ color: '#fff', background: '#1a1a25', padding: 16, borderRadius: 8, maxWidth: '80%', wordBreak: 'break-word' }}>
+          {error}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div ref={containerRef} className="engine-viewport">

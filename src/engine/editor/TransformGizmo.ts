@@ -41,8 +41,8 @@ export class TransformGizmo {
     this.controls.setMode('translate')
     this.controls.setSpace('world')
 
-    // Add to scene
-    this.scene.add(this.controls.getHelper())
+    // Add to scene (TransformControls itself is the gizmo in modern Three.js)
+    this.scene.add(this.controls)
 
     // Set up event listeners
     this.controls.addEventListener('dragging-changed', (event: { value: boolean }) => {
@@ -172,7 +172,7 @@ export class TransformGizmo {
 
   dispose(): void {
     this.detach()
-    this.scene.remove(this.controls.getHelper())
+    this.scene.remove(this.controls)
     this.controls.dispose()
   }
 }

@@ -20,6 +20,7 @@ interface EngineState {
   gizmoEnabled: boolean
 
   setEngine: (engine: Engine) => void
+  clearEngine: () => void
   selectEntity: (entity: Entity | null) => void
   setPlaying: (playing: boolean) => void
   updateStats: () => void
@@ -46,6 +47,7 @@ export const useEngineStore = create<EngineState>((set, get) => ({
   gizmoEnabled: true,
 
   setEngine: (engine) => set({ engine }),
+  clearEngine: () => set({ engine: null, selectedEntity: null }),
 
   selectEntity: (entity) => set({ selectedEntity: entity }),
 
