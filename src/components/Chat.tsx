@@ -9,6 +9,7 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [showContextDetails, setShowContextDetails] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [cliMissing, setCliMissing] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const {
     messages,
@@ -124,9 +125,15 @@ export default function Chat() {
     } catch (error) {
       console.error('Failed to communicate with Claude:', error)
 
-      // Update the streaming message with error
-      const errorMsg = `Error: ${error}. Make sure Claude CLI is installed and accessible.`
-      updateStreamingMessage(messageId, errorMsg)
+      const errorStr = String(error)
+
+      // Check if Claude CLI is missing
+      if (errorStr.includes('program not found') || errorStr.includes('spawn')) {
+        setCliMissing(true)
+        updateStreamingMessage(messageId, 'Claude CLI is not installed. The AI Chat feature requires the Claude CLI to be installed and in your PATH.')
+      } else {
+        updateStreamingMessage(messageId, `Error: ${error}`)
+      }
       completeStreamingMessage(messageId)
 
       setIsGenerating(false)
@@ -156,6 +163,21 @@ export default function Chat() {
 
   return (
     <div className="chat-container">
+      {cliMissing && (
+        <div style={{
+          background: '#1e3a5f',
+          color: '#93c5fd',
+          padding: '12px 16px',
+          fontSize: '13px',
+          borderBottom: '1px solid #2563eb'
+        }}>
+          <strong>Claude CLI not found.</strong> AI Chat requires the Claude CLI.
+          <br />
+          <span style={{ opacity: 0.8, fontSize: '12px' }}>
+            Install from: https://claude.ai/download
+          </span>
+        </div>
+      )}
       <div className="chat-messages">
         {messages.map((msg) => (
           <div key={msg.id} className={`chat-message ${msg.role}`}>
