@@ -1,16 +1,89 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { Engine } from '../engine'
 import { Transform } from '../engine/core/Transform'
 import { Light } from '../engine/core/Light'
 import { MeshRenderer } from '../engine/core/MeshRenderer'
+import { TransformGizmo, GizmoMode } from '../engine/editor'
 import { useEngineStore } from '../stores/engineStore'
 
 export default function EngineViewport() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const { setEngine, updateStats, isPlaying, setPlaying } = useEngineStore()
+  const gizmoRef = useRef<TransformGizmo | null>(null)
+  const orbitRef = useRef<OrbitControls | null>(null)
+
+  const {
+    setEngine,
+    updateStats,
+    isPlaying,
+    setPlaying,
+    selectedEntity,
+    gizmoMode,
+    gizmoSpace,
+    gizmoEnabled,
+    setGizmoMode,
+    toggleGizmoSpace
+  } = useEngineStore()
+
   const [initialized, setInitialized] = useState(false)
+
+  // Keyboard shortcuts for gizmo modes
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      switch (e.key.toLowerCase()) {
+        case 'w':
+          setGizmoMode('translate')
+          break
+        case 'e':
+          setGizmoMode('rotate')
+          break
+        case 'r':
+          setGizmoMode('scale')
+          break
+        case 'q':
+          toggleGizmoSpace()
+          break
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [setGizmoMode, toggleGizmoSpace])
+
+  // Sync gizmo with selected entity
+  useEffect(() => {
+    if (gizmoRef.current) {
+      gizmoRef.current.attach(selectedEntity)
+    }
+  }, [selectedEntity])
+
+  // Sync gizmo mode
+  useEffect(() => {
+    if (gizmoRef.current) {
+      gizmoRef.current.mode = gizmoMode
+    }
+  }, [gizmoMode])
+
+  // Sync gizmo space
+  useEffect(() => {
+    if (gizmoRef.current) {
+      gizmoRef.current.space = gizmoSpace
+    }
+  }, [gizmoSpace])
+
+  // Sync gizmo enabled state
+  useEffect(() => {
+    if (gizmoRef.current) {
+      gizmoRef.current.enabled = gizmoEnabled
+    }
+  }, [gizmoEnabled])
 
   useEffect(() => {
     if (!canvasRef.current || initialized) return
@@ -28,9 +101,60 @@ export default function EngineViewport() {
     setEngine(engine)
     setInitialized(true)
 
+    // Get camera and scene for gizmo/orbit controls
+    const scene = engine.renderSystem.getScene()
+    const renderer = engine.renderSystem.getRenderer()
+
+    // Find the main camera
+    const cameraEntities = engine.world.getEntitiesWithTag('camera')
+    let threeCamera: THREE.Camera | null = null
+
+    for (const camEntity of cameraEntities) {
+      const camComp = camEntity.getComponent(Transform)
+      if (camComp) {
+        // Create an editor camera that mirrors the main camera
+        const editorCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000)
+        editorCamera.position.set(5, 5, 5)
+        editorCamera.lookAt(0, 0, 0)
+        threeCamera = editorCamera
+        scene.add(editorCamera)
+        break
+      }
+    }
+
+    if (!threeCamera) {
+      // Fallback camera
+      threeCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000)
+      threeCamera.position.set(5, 5, 5)
+      threeCamera.lookAt(0, 0, 0)
+      scene.add(threeCamera)
+    }
+
+    // Create orbit controls
+    const orbitControls = new OrbitControls(threeCamera, renderer.domElement)
+    orbitControls.enableDamping = true
+    orbitControls.dampingFactor = 0.1
+    orbitControls.target.set(0, 0, 0)
+    orbitRef.current = orbitControls
+
+    // Create transform gizmo
+    const gizmo = new TransformGizmo(threeCamera, renderer.domElement, scene)
+    gizmoRef.current = gizmo
+
+    // Disable orbit controls while dragging gizmo
+    renderer.domElement.addEventListener('gizmo-dragging', ((e: CustomEvent) => {
+      orbitControls.enabled = !e.detail.dragging
+    }) as EventListener)
+
     // Start engine
     engine.start()
     setPlaying(true)
+
+    // Update loop for orbit controls
+    const updateOrbit = () => {
+      orbitControls.update()
+    }
+    engine.onUpdate(updateOrbit)
 
     // Update stats
     const statsInterval = setInterval(() => {
@@ -42,6 +166,11 @@ export default function EngineViewport() {
       if (containerRef.current && engine) {
         const { clientWidth, clientHeight } = containerRef.current
         engine.setSize(clientWidth, clientHeight)
+
+        if (threeCamera instanceof THREE.PerspectiveCamera) {
+          threeCamera.aspect = clientWidth / clientHeight
+          threeCamera.updateProjectionMatrix()
+        }
       }
     }
 
@@ -55,6 +184,9 @@ export default function EngineViewport() {
     return () => {
       clearInterval(statsInterval)
       resizeObserver.disconnect()
+      engine.offUpdate(updateOrbit)
+      gizmo.dispose()
+      orbitControls.dispose()
       engine.dispose()
     }
   }, [initialized, setEngine, setPlaying, updateStats])
@@ -65,12 +197,49 @@ export default function EngineViewport() {
 
       {/* Viewport toolbar */}
       <div className="viewport-toolbar">
+        {/* Play/Pause */}
         <button
           className={`toolbar-btn ${isPlaying ? 'active' : ''}`}
           onClick={() => setPlaying(!isPlaying)}
           title={isPlaying ? 'Pause' : 'Play'}
         >
           {isPlaying ? '⏸' : '▶'}
+        </button>
+
+        <div className="toolbar-separator" />
+
+        {/* Gizmo mode buttons */}
+        <button
+          className={`toolbar-btn ${gizmoMode === 'translate' ? 'active' : ''}`}
+          onClick={() => setGizmoMode('translate')}
+          title="Translate (W)"
+        >
+          ✥
+        </button>
+        <button
+          className={`toolbar-btn ${gizmoMode === 'rotate' ? 'active' : ''}`}
+          onClick={() => setGizmoMode('rotate')}
+          title="Rotate (E)"
+        >
+          ⟳
+        </button>
+        <button
+          className={`toolbar-btn ${gizmoMode === 'scale' ? 'active' : ''}`}
+          onClick={() => setGizmoMode('scale')}
+          title="Scale (R)"
+        >
+          ⤢
+        </button>
+
+        <div className="toolbar-separator" />
+
+        {/* Space toggle */}
+        <button
+          className="toolbar-btn"
+          onClick={toggleGizmoSpace}
+          title={`Toggle Space (Q) - Currently: ${gizmoSpace}`}
+        >
+          {gizmoSpace === 'world' ? '🌍' : '📦'}
         </button>
       </div>
 
@@ -115,6 +284,12 @@ export default function EngineViewport() {
         }
         .toolbar-btn.active {
           background: var(--accent);
+        }
+        .toolbar-separator {
+          width: 1px;
+          height: 20px;
+          background: rgba(255, 255, 255, 0.2);
+          margin: 0 4px;
         }
       `}</style>
     </div>

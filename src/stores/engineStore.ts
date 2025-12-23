@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { Engine } from '../engine'
 import { Entity } from '../engine/ecs/Entity'
+import { GizmoMode, GizmoSpace } from '../engine/editor'
 
 interface EngineState {
   engine: Engine | null
@@ -13,10 +14,19 @@ interface EngineState {
     triangles: number
   }
 
+  // Gizmo state
+  gizmoMode: GizmoMode
+  gizmoSpace: GizmoSpace
+  gizmoEnabled: boolean
+
   setEngine: (engine: Engine) => void
   selectEntity: (entity: Entity | null) => void
   setPlaying: (playing: boolean) => void
   updateStats: () => void
+  setGizmoMode: (mode: GizmoMode) => void
+  setGizmoSpace: (space: GizmoSpace) => void
+  setGizmoEnabled: (enabled: boolean) => void
+  toggleGizmoSpace: () => void
 }
 
 export const useEngineStore = create<EngineState>((set, get) => ({
@@ -29,6 +39,11 @@ export const useEngineStore = create<EngineState>((set, get) => ({
     drawCalls: 0,
     triangles: 0
   },
+
+  // Gizmo state
+  gizmoMode: 'translate',
+  gizmoSpace: 'world',
+  gizmoEnabled: true,
 
   setEngine: (engine) => set({ engine }),
 
@@ -59,5 +74,12 @@ export const useEngineStore = create<EngineState>((set, get) => ({
         triangles: stats.triangles
       }
     })
-  }
+  },
+
+  setGizmoMode: (mode) => set({ gizmoMode: mode }),
+  setGizmoSpace: (space) => set({ gizmoSpace: space }),
+  setGizmoEnabled: (enabled) => set({ gizmoEnabled: enabled }),
+  toggleGizmoSpace: () => set((state) => ({
+    gizmoSpace: state.gizmoSpace === 'world' ? 'local' : 'world'
+  }))
 }))
