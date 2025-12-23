@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import FileTree from './components/FileTree'
 import Editor from './components/Editor'
 import EngineViewport from './components/EngineViewport'
@@ -6,6 +6,7 @@ import Hierarchy from './components/Hierarchy'
 import Inspector from './components/Inspector'
 import Chat from './components/Chat'
 import { useProjectStore } from './stores/projectStore'
+import { useHistoryStore } from './stores/historyStore'
 
 type ViewMode = 'viewport' | 'editor' | 'split'
 type LeftPanel = 'files' | 'hierarchy'
@@ -16,6 +17,29 @@ function App() {
   const [leftPanel, setLeftPanel] = useState<LeftPanel>('hierarchy')
   const [rightPanel, setRightPanel] = useState<RightPanel>('inspector')
   const projectName = useProjectStore((s) => s.projectName)
+  const { canUndo, canRedo, undo, redo } = useHistoryStore()
+
+  // Keyboard shortcuts for undo/redo
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      if (e.shiftKey) {
+        e.preventDefault()
+        redo()
+      } else {
+        e.preventDefault()
+        undo()
+      }
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+      e.preventDefault()
+      redo()
+    }
+  }, [undo, redo])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
 
   return (
     <div className="app-container">
@@ -25,6 +49,24 @@ function App() {
         <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
           {projectName || 'Untitled Project'}
         </span>
+        <div className="titlebar-actions">
+          <button
+            className={`titlebar-btn ${!canUndo ? 'disabled' : ''}`}
+            onClick={undo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+          >
+            ↶
+          </button>
+          <button
+            className={`titlebar-btn ${!canRedo ? 'disabled' : ''}`}
+            onClick={redo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            ↷
+          </button>
+        </div>
         <div style={{ flex: 1 }} />
         <div className="status-dot" title="Engine Running" />
       </div>
@@ -132,6 +174,33 @@ function App() {
         .panel-tab.active {
           color: var(--accent);
           border-bottom-color: var(--accent);
+        }
+        .titlebar-actions {
+          display: flex;
+          gap: 4px;
+          margin-left: 16px;
+        }
+        .titlebar-btn {
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-color);
+          color: var(--text-primary);
+          width: 28px;
+          height: 28px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s ease;
+        }
+        .titlebar-btn:hover:not(.disabled) {
+          background: var(--accent);
+          border-color: var(--accent);
+        }
+        .titlebar-btn.disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
         }
       `}</style>
     </div>

@@ -1,6 +1,7 @@
+import { useState, useEffect, useCallback } from 'react'
 import { useEngineStore } from '../stores/engineStore'
 import { Entity } from '../engine/ecs/Entity'
-import { useState, useEffect } from 'react'
+import { commandHistory, CreateEntityCommand, DeleteEntityCommand } from '../engine/editor'
 
 interface HierarchyItemProps {
   entity: Entity
@@ -45,7 +46,7 @@ function HierarchyItem({ entity, depth }: HierarchyItemProps) {
 }
 
 export default function Hierarchy() {
-  const { engine } = useEngineStore()
+  const { engine, selectedEntity, selectEntity } = useEngineStore()
   const [entities, setEntities] = useState<Entity[]>([])
 
   useEffect(() => {
@@ -64,32 +65,69 @@ export default function Hierarchy() {
   const handleAddEntity = (type: string) => {
     if (!engine) return
 
+    let entity: Entity | null = null
+
     switch (type) {
       case 'empty':
-        engine.createEntity('Empty')
+        entity = engine.createEntity('Empty')
         break
       case 'cube':
-        engine.createBox('Cube')
+        entity = engine.createBox('Cube')
         break
       case 'sphere':
-        engine.createSphere('Sphere')
+        entity = engine.createSphere('Sphere')
         break
       case 'plane':
-        engine.createPlane('Plane')
+        entity = engine.createPlane('Plane')
         break
       case 'light':
-        const light = engine.createLight('Light', 'point')
-        light.addTag('light')
-        light.getComponent(engine.world.getEntitiesWithComponents()[0]?.getComponent as never)
+        entity = engine.createLight('Light', 'point')
+        entity.addTag('light')
         break
       case 'camera':
-        const cam = engine.createCamera('Camera', false)
-        cam.addTag('camera')
+        entity = engine.createCamera('Camera', false)
+        entity.addTag('camera')
         break
+    }
+
+    if (entity) {
+      // Create command for undo support (entity already created, just track it)
+      const command = new CreateEntityCommand(engine, entity)
+      commandHistory.push(command)
     }
 
     setEntities(engine.world.getRootEntities())
   }
+
+  const handleDeleteEntity = useCallback((entity: Entity) => {
+    if (!engine) return
+
+    const command = new DeleteEntityCommand(engine, entity)
+    commandHistory.execute(command)
+
+    // Deselect if deleted entity was selected
+    if (selectedEntity?.id === entity.id) {
+      selectEntity(null)
+    }
+
+    setEntities(engine.world.getRootEntities())
+  }, [engine, selectedEntity, selectEntity])
+
+  // Keyboard shortcut for delete
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      if (e.key === 'Delete' && selectedEntity) {
+        handleDeleteEntity(selectedEntity)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedEntity, handleDeleteEntity])
 
   return (
     <div className="hierarchy-panel">
@@ -98,6 +136,16 @@ export default function Hierarchy() {
         <button onClick={() => handleAddEntity('cube')} title="Add Cube">◻</button>
         <button onClick={() => handleAddEntity('sphere')} title="Add Sphere">○</button>
         <button onClick={() => handleAddEntity('light')} title="Add Light">💡</button>
+        <div style={{ flex: 1 }} />
+        {selectedEntity && (
+          <button
+            onClick={() => handleDeleteEntity(selectedEntity)}
+            title="Delete Selected (Del)"
+            className="delete-btn"
+          >
+            🗑
+          </button>
+        )}
       </div>
       <div className="hierarchy-list">
         {entities.map((entity) => (
@@ -173,6 +221,10 @@ export default function Hierarchy() {
           text-align: center;
           color: var(--text-secondary);
           font-size: 12px;
+        }
+        .delete-btn:hover {
+          background: #dc2626 !important;
+          border-color: #dc2626 !important;
         }
       `}</style>
     </div>

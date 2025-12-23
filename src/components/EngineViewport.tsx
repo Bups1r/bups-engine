@@ -6,8 +6,12 @@ import { Engine } from '../engine'
 import { Transform } from '../engine/core/Transform'
 import { Light } from '../engine/core/Light'
 import { MeshRenderer } from '../engine/core/MeshRenderer'
-import { TransformGizmo } from '../engine/editor'
+import { TransformGizmo, commandHistory, TransformCommand } from '../engine/editor'
 import { useEngineStore } from '../stores/engineStore'
+import { Entity } from '../engine/ecs/Entity'
+
+// Track transform state for undo/redo
+let transformStartState: { position: THREE.Vector3; rotation: THREE.Euler; scale: THREE.Vector3 } | null = null
 
 export default function EngineViewport() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -141,6 +145,42 @@ export default function EngineViewport() {
     // Create transform gizmo
     const gizmo = new TransformGizmo(threeCamera, renderer.domElement, scene)
     gizmoRef.current = gizmo
+
+    // Set up transform events for undo/redo
+    gizmo.setEvents({
+      onTransformStart: (entity: Entity) => {
+        const transform = entity.getComponent(Transform)
+        if (transform) {
+          transformStartState = {
+            position: transform.position.clone(),
+            rotation: transform.rotation.clone(),
+            scale: transform.scale.clone()
+          }
+        }
+      },
+      onTransformEnd: (entity: Entity) => {
+        const transform = entity.getComponent(Transform)
+        if (transform && transformStartState) {
+          const newState = {
+            position: transform.position.clone(),
+            rotation: transform.rotation.clone(),
+            scale: transform.scale.clone()
+          }
+
+          // Only create command if something actually changed
+          if (
+            !transformStartState.position.equals(newState.position) ||
+            !transformStartState.rotation.equals(newState.rotation) ||
+            !transformStartState.scale.equals(newState.scale)
+          ) {
+            const command = new TransformCommand(entity, transformStartState, newState)
+            // Use push - transform is already applied, just add to history
+            commandHistory.push(command)
+          }
+          transformStartState = null
+        }
+      }
+    })
 
     // Disable orbit controls while dragging gizmo
     renderer.domElement.addEventListener('gizmo-dragging', ((e: CustomEvent) => {
