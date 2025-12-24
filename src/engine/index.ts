@@ -45,3 +45,16 @@ export type { ScriptContext, CompiledScript, HotReloadConfig, HotReloadStatus, H
 // AI
 export { ContextBuilder, contextBuilder } from './ai/ContextBuilder'
 export type { EngineContext } from './ai/ContextBuilder'
+
+// Serialization
+export { SceneSerializer, projectManager, ProjectManager } from './serialization'
+export type {
+  SerializedScene,
+  SerializedEntity,
+  SerializedComponent,
+  SceneData,
+  ProjectFile,
+  ProjectMetadata,
+  ProjectSettings,
+  AutoSaveConfig
+} from './serialization'

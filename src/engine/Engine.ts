@@ -10,6 +10,7 @@ import { PhysicsSystem } from './physics/PhysicsSystem'
 import { AudioSystem } from './audio/AudioSystem'
 import { InputManager } from './input/InputManager'
 import { AssetManager } from './assets/AssetManager'
+import { SceneSerializer, SerializedScene } from './serialization/SceneSerializer'
 
 export interface EngineConfig {
   canvas: HTMLCanvasElement
@@ -189,14 +190,51 @@ export class Engine {
   }
 
   // Scene management
-  loadScene(sceneData: object): void {
-    this.world.clear()
-    // TODO: Deserialize scene data
-    console.log('Loading scene:', sceneData)
+  loadScene(sceneData: SerializedScene | object): void {
+    // Stop the engine while loading to prevent issues
+    const wasRunning = this.running
+    if (wasRunning) {
+      this.stop()
+    }
+
+    // Validate and deserialize the scene data
+    if (SceneSerializer.validateSceneData(sceneData)) {
+      SceneSerializer.deserializeScene(this.world, sceneData)
+      console.log('[Engine] Scene loaded successfully:', this.world.name)
+    } else {
+      console.error('[Engine] Invalid scene data format')
+      throw new Error('Invalid scene data format')
+    }
+
+    // Restart if it was running
+    if (wasRunning) {
+      this.start()
+    }
   }
 
-  saveScene(): object {
-    return this.world.toJSON()
+  saveScene(): SerializedScene {
+    return SceneSerializer.serializeWorld(this.world)
+  }
+
+  // Clear the current scene
+  clearScene(): void {
+    this.world.clear()
+  }
+
+  // Get serialized scene as JSON string
+  exportSceneToJSON(): string {
+    return JSON.stringify(this.saveScene(), null, 2)
+  }
+
+  // Import scene from JSON string
+  importSceneFromJSON(jsonString: string): void {
+    try {
+      const sceneData = JSON.parse(jsonString)
+      this.loadScene(sceneData)
+    } catch (error) {
+      console.error('[Engine] Failed to parse scene JSON:', error)
+      throw new Error('Failed to parse scene JSON')
+    }
   }
 
   // Asset management
