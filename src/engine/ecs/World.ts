@@ -5,6 +5,7 @@ import { System, SystemManager } from './System'
 export class World {
   public name: string
   private entities: Map<number, Entity> = new Map()
+  private entitiesByName: Map<string, Set<Entity>> = new Map()  // O(1) name lookup index
   private entitiesByTag: Map<string, Set<Entity>> = new Map()
   private systemManager: SystemManager
   private rootEntities: Entity[] = []
@@ -27,6 +28,9 @@ export class World {
       this.rootEntities.push(entity)
     }
 
+    // Index by name for O(1) lookup
+    this.indexEntityName(entity)
+
     // Index by tags
     for (const tag of entity.getTags()) {
       this.indexEntityTag(entity, tag)
@@ -34,6 +38,35 @@ export class World {
 
     // Emit world change event for UI updates
     this.emitWorldChanged()
+  }
+
+  private indexEntityName(entity: Entity): void {
+    if (!this.entitiesByName.has(entity.name)) {
+      this.entitiesByName.set(entity.name, new Set())
+    }
+    this.entitiesByName.get(entity.name)!.add(entity)
+  }
+
+  private unindexEntityName(entity: Entity): void {
+    const named = this.entitiesByName.get(entity.name)
+    if (named) {
+      named.delete(entity)
+      if (named.size === 0) {
+        this.entitiesByName.delete(entity.name)
+      }
+    }
+  }
+
+  // Call this when an entity's name changes to update the index
+  updateEntityName(entity: Entity, oldName: string): void {
+    const oldNamed = this.entitiesByName.get(oldName)
+    if (oldNamed) {
+      oldNamed.delete(entity)
+      if (oldNamed.size === 0) {
+        this.entitiesByName.delete(oldName)
+      }
+    }
+    this.indexEntityName(entity)
   }
 
   private emitWorldChanged(): void {
@@ -51,6 +84,9 @@ export class World {
       this.rootEntities.splice(rootIndex, 1)
     }
 
+    // Remove from name index
+    this.unindexEntityName(entity)
+
     // Remove from tag index
     for (const tag of entity.getTags()) {
       this.unindexEntityTag(entity, tag)
@@ -64,13 +100,22 @@ export class World {
     return this.entities.get(id)
   }
 
+  // O(1) lookup using name index instead of O(n) linear search
   getEntityByName(name: string): Entity | undefined {
-    for (const entity of this.entities.values()) {
-      if (entity.name === name) {
-        return entity
-      }
+    const named = this.entitiesByName.get(name)
+    if (!named || named.size === 0) return undefined
+    // Return first active entity with this name
+    for (const entity of named) {
+      if (entity.active) return entity
     }
     return undefined
+  }
+
+  // Get all entities with a given name (for cases with duplicate names)
+  getEntitiesByName(name: string): Entity[] {
+    const named = this.entitiesByName.get(name)
+    if (!named) return []
+    return Array.from(named).filter(e => e.active)
   }
 
   getEntities(): Entity[] {
@@ -136,6 +181,7 @@ export class World {
       entity.destroy()
     }
     this.entities.clear()
+    this.entitiesByName.clear()
     this.rootEntities = []
     this.entitiesByTag.clear()
   }
