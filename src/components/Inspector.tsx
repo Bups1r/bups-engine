@@ -5,7 +5,7 @@ import { Light } from '../engine/core/Light'
 import { Camera } from '../engine/core/Camera'
 import { RigidBody } from '../engine/physics/RigidBody'
 import { ScriptComponent, scriptTemplates } from '../engine/scripting'
-import { useState, useEffect, useCallback, useMemo, memo } from 'react'
+import { useState, useEffect, useCallback, memo } from 'react'
 
 interface Vector3InputProps {
   label: string
@@ -367,7 +367,14 @@ export default function Inspector() {
     return (
       <div className="inspector-panel">
         <div className="inspector-empty">
-          Select an entity to inspect
+          <div className="empty-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </div>
+          <div className="empty-title">No object selected</div>
+          <div className="empty-hint">Select an object from the Hierarchy panel to view and edit its properties</div>
         </div>
         <style>{inspectorStyles}</style>
       </div>
@@ -474,174 +481,278 @@ const inspectorStyles = `
   .inspector-panel {
     height: 100%;
     overflow-y: auto;
-    padding: 8px;
+    padding: var(--spacing-md);
+    background: var(--bg-primary);
   }
   .inspector-empty {
-    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xl);
     text-align: center;
+    height: 100%;
+    min-height: 300px;
+  }
+  .inspector-empty .empty-icon {
+    color: var(--text-muted);
+    opacity: 0.4;
+    margin-bottom: var(--spacing-lg);
+  }
+  .inspector-empty .empty-title {
+    font-size: 14px;
+    font-weight: 600;
     color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+  }
+  .inspector-empty .empty-hint {
     font-size: 12px;
+    color: var(--text-muted);
+    max-width: 200px;
+    line-height: 1.6;
   }
   .inspector-header {
-    padding: 8px;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 8px;
+    padding: var(--spacing-md);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-md);
+    border: 1px solid var(--border-color);
   }
   .entity-name-input {
     width: 100%;
-    padding: 8px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
+    padding: 10px 12px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
     color: var(--text-primary);
     font-size: 14px;
-    margin-bottom: 8px;
+    font-weight: 500;
+    margin-bottom: var(--spacing-sm);
+    transition: all var(--transition-fast);
+  }
+  .entity-name-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
   }
   .active-checkbox {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-sm);
     font-size: 12px;
     color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .active-checkbox:hover {
+    color: var(--text-primary);
   }
   .component-inspector {
     background: var(--bg-secondary);
-    border-radius: 4px;
-    margin-bottom: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-md);
     overflow: hidden;
+    transition: all var(--transition-normal);
+  }
+  .component-inspector:hover {
+    border-color: var(--border-color);
   }
   .component-header {
-    padding: 8px 12px;
+    padding: var(--spacing-md) var(--spacing-lg);
     background: var(--bg-tertiary);
     font-size: 12px;
     font-weight: 600;
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--text-primary);
+    letter-spacing: 0.3px;
   }
   .inspector-field {
     display: flex;
     align-items: center;
-    padding: 8px 12px;
-    gap: 8px;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    gap: var(--spacing-md);
     font-size: 12px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .inspector-field:last-child {
+    border-bottom: none;
   }
   .inspector-field label {
-    width: 80px;
+    width: 90px;
     color: var(--text-secondary);
+    font-weight: 500;
+    flex-shrink: 0;
   }
   .inspector-field input[type="number"],
   .inspector-field input[type="text"] {
     flex: 1;
-    padding: 4px 8px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
+    padding: 6px 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-size: 12px;
+    transition: all var(--transition-fast);
+  }
+  .inspector-field input[type="number"]:focus,
+  .inspector-field input[type="text"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
   }
   .inspector-field input[type="range"] {
     flex: 1;
+    height: 4px;
+    background: var(--bg-elevated);
+    border-radius: 2px;
+    cursor: pointer;
   }
   .inspector-field input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
   }
   .inspector-field input[type="color"] {
-    width: 40px;
-    height: 24px;
+    width: 36px;
+    height: 28px;
     padding: 0;
     border: none;
     cursor: pointer;
+    border-radius: var(--radius-sm);
+  }
+  .inspector-field span {
+    min-width: 36px;
+    text-align: right;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: monospace;
   }
   .vector3-input {
-    padding: 8px 12px;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .vector3-input:last-child {
+    border-bottom: none;
   }
   .vector3-input label {
-    display: block;
+    display: flex;
+    align-items: center;
     font-size: 12px;
     color: var(--text-secondary);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+    font-weight: 500;
   }
   .vector3-fields {
     display: flex;
-    gap: 4px;
+    gap: 6px;
   }
   .vector3-fields input {
     flex: 1;
-    padding: 4px 8px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
+    padding: 6px 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-size: 12px;
-    width: 60px;
+    font-family: monospace;
+    transition: all var(--transition-fast);
   }
+  .vector3-fields input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+  .vector3-fields input:nth-child(1):focus { border-color: #ef4444; box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); }
+  .vector3-fields input:nth-child(2):focus { border-color: #22c55e; box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2); }
+  .vector3-fields input:nth-child(3):focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
   .add-component-btn {
     width: 100%;
-    padding: 10px;
-    background: var(--bg-tertiary);
-    border: 1px dashed var(--border-color);
-    border-radius: 4px;
-    color: var(--text-secondary);
+    padding: 12px;
+    background: transparent;
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    color: var(--text-muted);
     cursor: pointer;
-    font-size: 12px;
-    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: var(--spacing-md);
+    transition: all var(--transition-normal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
   }
   .add-component-btn:hover {
-    background: var(--accent);
-    border-style: solid;
-    color: white;
+    background: var(--accent-glow);
+    border-color: var(--accent);
+    color: var(--accent-light);
   }
   .script-inspector .component-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    cursor: pointer;
+  }
+  .script-inspector .component-header:hover {
+    background: var(--bg-elevated);
   }
   .script-error-badge {
-    background: #dc2626;
+    background: var(--error);
     color: white;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 12px;
     font-weight: bold;
+    animation: pulse-glow 2s ease-in-out infinite;
   }
   .script-error {
-    padding: 8px 12px;
-    background: rgba(220, 38, 38, 0.2);
-    color: #fca5a5;
-    font-size: 11px;
-    border-left: 3px solid #dc2626;
+    padding: var(--spacing-md);
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--error-light);
+    font-size: 12px;
+    border-left: 3px solid var(--error);
+    margin: var(--spacing-sm);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   }
   .script-code-editor {
-    padding: 8px;
+    padding: var(--spacing-md);
   }
   .script-code-editor textarea {
     width: 100%;
-    min-height: 200px;
+    min-height: 180px;
     padding: 12px;
-    background: #1a1a2e;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    color: #e0e0e0;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', monospace;
     font-size: 12px;
-    line-height: 1.5;
+    line-height: 1.6;
     resize: vertical;
+    transition: all var(--transition-fast);
   }
   .script-code-editor textarea:focus {
     outline: none;
     border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
   }
   .inspector-field select {
     flex: 1;
-    padding: 4px 8px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
+    padding: 6px 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-size: 12px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  .inspector-field select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
   }
 `

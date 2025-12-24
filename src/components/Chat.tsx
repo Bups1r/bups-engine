@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { useChatStore, ChatMessage } from '../stores/chatStore'
 import { useEngineStore } from '../stores/engineStore'
 import { invoke } from '@tauri-apps/api/tauri'
@@ -243,39 +243,48 @@ export default function Chat() {
   return (
     <div className="chat-container">
       {cliMissing && (
-        <div style={{
-          background: '#1e3a5f',
-          color: '#93c5fd',
-          padding: '12px 16px',
-          fontSize: '13px',
-          borderBottom: '1px solid #2563eb',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px'
-        }}>
-          <div>
-            <strong>Claude CLI not found.</strong> AI Chat requires the Claude CLI.
+        <div className="cli-warning">
+          <div className="cli-warning-content">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span><strong>Claude CLI not found.</strong> AI Chat requires the Claude CLI.</span>
           </div>
           <button
             onClick={() => open('https://claude.ai/download')}
-            style={{
-              background: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '13px',
-              fontWeight: 500,
-              whiteSpace: 'nowrap'
-            }}
+            className="cli-install-btn"
           >
-            Install Claude CLI
+            Install
           </button>
         </div>
       )}
       <div className="chat-messages">
+        {messages.length === 0 && !isLoading && (
+          <div className="chat-empty">
+            <div className="chat-empty-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <div className="chat-empty-title">AI Assistant</div>
+            <div className="chat-empty-hint">
+              Ask me anything about game development! Try:
+            </div>
+            <div className="chat-suggestions">
+              <button className="suggestion-btn" onClick={() => setInput("How do I make an object rotate?")}>
+                How do I make an object rotate?
+              </button>
+              <button className="suggestion-btn" onClick={() => setInput("Create a simple player controller")}>
+                Create a player controller
+              </button>
+              <button className="suggestion-btn" onClick={() => setInput("Explain how lighting works")}>
+                Explain how lighting works
+              </button>
+            </div>
+          </div>
+        )}
         {messages.map((msg) => (
           <MessageItem
             key={msg.id}
@@ -285,27 +294,13 @@ export default function Chat() {
           />
         ))}
         {isLoading && !streamingMessageId && (
-          <div className="chat-message assistant" style={{ opacity: 0.7 }}>
-            <span className="loading-dots">Thinking</span>
-            <style>{`
-              .loading-dots::after {
-                content: '';
-                animation: dots 1.5s steps(4, end) infinite;
-              }
-              @keyframes dots {
-                0%, 20% { content: ''; }
-                40% { content: '.'; }
-                60% { content: '..'; }
-                80%, 100% { content: '...'; }
-              }
-              .streaming-cursor {
-                animation: blink 1s steps(2, start) infinite;
-                margin-left: 2px;
-              }
-              @keyframes blink {
-                to { visibility: hidden; }
-              }
-            `}</style>
+          <div className="chat-message assistant thinking">
+            <div className="thinking-indicator">
+              <span className="thinking-dot"></span>
+              <span className="thinking-dot"></span>
+              <span className="thinking-dot"></span>
+            </div>
+            <span>Thinking...</span>
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -313,21 +308,11 @@ export default function Chat() {
 
       <div className="chat-input-container">
         {hasContext && includeContext && (
-          <div style={{
-            fontSize: '0.75rem',
-            color: '#10b981',
-            marginBottom: '8px',
-            padding: '6px 10px',
-            background: '#064e3b',
-            borderRadius: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <span>
-              <span style={{ marginRight: '6px' }}>●</span>
-              {contextSummary}
-            </span>
+          <div className="context-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="5"/>
+            </svg>
+            <span>{contextSummary}</span>
           </div>
         )}
 
@@ -336,49 +321,257 @@ export default function Chat() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Describe what you want to build..."
+          placeholder="Ask me anything about game development..."
           rows={3}
           disabled={isLoading}
         />
 
-        <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <label style={{
-            fontSize: '0.85rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer',
-            color: includeContext ? '#10b981' : '#6b7280'
-          }}>
+        <div className="chat-actions">
+          <label className={`context-toggle ${includeContext ? 'active' : ''}`}>
             <input
               type="checkbox"
               checked={includeContext}
               onChange={(e) => setIncludeContext(e.target.checked)}
-              style={{ cursor: 'pointer' }}
             />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
             Include context
           </label>
 
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="chat-buttons">
             {isGenerating && (
               <button
-                className="btn btn-secondary"
+                className="cancel-btn"
                 onClick={handleCancel}
-                style={{ background: '#d32f2f', borderColor: '#d32f2f' }}
               >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                </svg>
                 Cancel
               </button>
             )}
             <button
-              className="btn btn-primary"
+              className="send-btn"
               onClick={handleSubmit}
               disabled={isLoading || isGenerating || !input.trim()}
             >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
               {isGenerating ? 'Generating...' : 'Send'}
             </button>
           </div>
         </div>
       </div>
+
+      <style>{`
+        .cli-warning {
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%);
+          border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+          padding: var(--spacing-md);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: var(--spacing-md);
+        }
+        .cli-warning-content {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          color: var(--info-light);
+          font-size: 12px;
+        }
+        .cli-install-btn {
+          background: var(--info);
+          color: white;
+          border: none;
+          padding: 6px 14px;
+          border-radius: var(--radius-md);
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          transition: all var(--transition-fast);
+        }
+        .cli-install-btn:hover {
+          background: var(--info-light);
+        }
+
+        .chat-empty {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: var(--spacing-xl);
+          text-align: center;
+          height: 100%;
+          min-height: 300px;
+        }
+        .chat-empty-icon {
+          color: var(--accent);
+          opacity: 0.6;
+          margin-bottom: var(--spacing-lg);
+        }
+        .chat-empty-title {
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--text-primary);
+          margin-bottom: var(--spacing-sm);
+        }
+        .chat-empty-hint {
+          font-size: 12px;
+          color: var(--text-muted);
+          margin-bottom: var(--spacing-lg);
+        }
+        .chat-suggestions {
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-sm);
+          width: 100%;
+          max-width: 280px;
+        }
+        .suggestion-btn {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-md);
+          padding: var(--spacing-sm) var(--spacing-md);
+          color: var(--text-secondary);
+          font-size: 12px;
+          cursor: pointer;
+          text-align: left;
+          transition: all var(--transition-fast);
+        }
+        .suggestion-btn:hover {
+          background: var(--bg-tertiary);
+          border-color: var(--accent);
+          color: var(--accent-light);
+        }
+
+        .thinking {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+        }
+        .thinking-indicator {
+          display: flex;
+          gap: 4px;
+        }
+        .thinking-dot {
+          width: 6px;
+          height: 6px;
+          background: var(--accent);
+          border-radius: 50%;
+          animation: thinking-bounce 1.4s ease-in-out infinite;
+        }
+        .thinking-dot:nth-child(1) { animation-delay: 0s; }
+        .thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+        .thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes thinking-bounce {
+          0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+          40% { transform: scale(1.2); opacity: 1; }
+        }
+
+        .streaming-cursor {
+          animation: blink 1s steps(2, start) infinite;
+          margin-left: 2px;
+          color: var(--accent);
+        }
+        @keyframes blink {
+          to { visibility: hidden; }
+        }
+
+        .context-badge {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          color: var(--success);
+          margin-bottom: var(--spacing-sm);
+          padding: 6px 10px;
+          background: rgba(16, 185, 129, 0.1);
+          border: 1px solid rgba(16, 185, 129, 0.2);
+          border-radius: var(--radius-md);
+        }
+
+        .chat-actions {
+          margin-top: var(--spacing-sm);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .context-toggle {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          color: var(--text-muted);
+          cursor: pointer;
+          padding: 6px 10px;
+          border-radius: var(--radius-md);
+          transition: all var(--transition-fast);
+        }
+        .context-toggle:hover {
+          background: var(--bg-tertiary);
+          color: var(--text-secondary);
+        }
+        .context-toggle.active {
+          color: var(--success);
+        }
+        .context-toggle input {
+          display: none;
+        }
+
+        .chat-buttons {
+          display: flex;
+          gap: var(--spacing-sm);
+        }
+        .cancel-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 14px;
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          border-radius: var(--radius-md);
+          color: var(--error-light);
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+        }
+        .cancel-btn:hover {
+          background: rgba(239, 68, 68, 0.2);
+        }
+        .send-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+          border: none;
+          border-radius: var(--radius-md);
+          color: white;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all var(--transition-fast);
+          box-shadow: 0 2px 8px var(--accent-glow);
+        }
+        .send-btn:hover:not(:disabled) {
+          box-shadow: 0 4px 12px var(--accent-glow);
+          transform: translateY(-1px);
+        }
+        .send-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          transform: none;
+        }
+      `}</style>
     </div>
   )
 }

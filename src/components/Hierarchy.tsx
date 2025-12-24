@@ -6,7 +6,7 @@ import { commandHistory, CreateEntityCommand, DeleteEntityCommand } from '../eng
 interface HierarchyItemProps {
   entity: Entity
   depth: number
-  selectedEntityId: string | null
+  selectedEntityId: number | null
   onSelect: (entity: Entity) => void
 }
 
@@ -167,18 +167,54 @@ export default function Hierarchy() {
   return (
     <div className="hierarchy-panel">
       <div className="hierarchy-toolbar">
-        <button onClick={() => handleAddEntity('empty')} title="Add Empty">+</button>
-        <button onClick={() => handleAddEntity('cube')} title="Add Cube">◻</button>
-        <button onClick={() => handleAddEntity('sphere')} title="Add Sphere">○</button>
-        <button onClick={() => handleAddEntity('light')} title="Add Light">💡</button>
+        <div className="toolbar-group">
+          <button onClick={() => handleAddEntity('empty')} title="Add Empty Entity" className="toolbar-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="16"/>
+              <line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            <span className="btn-label">Empty</span>
+          </button>
+          <button onClick={() => handleAddEntity('cube')} title="Add Cube" className="toolbar-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+            <span className="btn-label">Cube</span>
+          </button>
+          <button onClick={() => handleAddEntity('sphere')} title="Add Sphere" className="toolbar-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/>
+              <ellipse cx="12" cy="12" rx="10" ry="4"/>
+            </svg>
+            <span className="btn-label">Sphere</span>
+          </button>
+          <button onClick={() => handleAddEntity('light')} title="Add Light" className="toolbar-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="5"/>
+              <line x1="12" y1="1" x2="12" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="23"/>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+              <line x1="1" y1="12" x2="3" y2="12"/>
+              <line x1="21" y1="12" x2="23" y2="12"/>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+            <span className="btn-label">Light</span>
+          </button>
+        </div>
         <div style={{ flex: 1 }} />
         {selectedEntity && (
           <button
             onClick={() => handleDeleteEntity(selectedEntity)}
             title="Delete Selected (Del)"
-            className="delete-btn"
+            className="toolbar-btn delete-btn"
           >
-            🗑
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
           </button>
         )}
       </div>
@@ -194,7 +230,15 @@ export default function Hierarchy() {
         ))}
         {entities.length === 0 && (
           <div className="hierarchy-empty">
-            No entities in scene
+            <div className="empty-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+            </div>
+            <div className="empty-title">No objects in scene</div>
+            <div className="empty-hint">Click the buttons above to add your first object!</div>
           </div>
         )}
       </div>
@@ -204,68 +248,130 @@ export default function Hierarchy() {
           height: 100%;
           display: flex;
           flex-direction: column;
+          background: var(--bg-primary);
         }
         .hierarchy-toolbar {
-          padding: 8px;
+          padding: var(--spacing-sm);
           display: flex;
-          gap: 4px;
+          gap: var(--spacing-xs);
           border-bottom: 1px solid var(--border-color);
-        }
-        .hierarchy-toolbar button {
-          padding: 4px 8px;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-color);
-          border-radius: 4px;
-          color: var(--text-primary);
-          cursor: pointer;
-          font-size: 12px;
-        }
-        .hierarchy-toolbar button:hover {
           background: var(--bg-secondary);
+        }
+        .toolbar-group {
+          display: flex;
+          gap: 2px;
+          background: var(--bg-primary);
+          border-radius: var(--radius-md);
+          padding: 2px;
+        }
+        .toolbar-btn {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 6px 10px;
+          background: transparent;
+          border: none;
+          border-radius: var(--radius-sm);
+          color: var(--text-secondary);
+          cursor: pointer;
+          font-size: 11px;
+          transition: all var(--transition-fast);
+        }
+        .toolbar-btn:hover {
+          background: var(--bg-tertiary);
+          color: var(--text-primary);
+        }
+        .toolbar-btn:hover svg {
+          color: var(--accent-light);
+        }
+        .btn-label {
+          font-weight: 500;
+        }
+        .delete-btn {
+          background: transparent;
+          padding: 6px;
+        }
+        .delete-btn:hover {
+          background: rgba(239, 68, 68, 0.2) !important;
+          color: var(--error-light) !important;
         }
         .hierarchy-list {
           flex: 1;
           overflow-y: auto;
-          padding: 8px 0;
+          padding: var(--spacing-sm) 0;
         }
         .hierarchy-item {
           display: flex;
           align-items: center;
-          padding: 4px 8px;
+          padding: 6px 8px;
           cursor: pointer;
           font-size: 13px;
-          gap: 4px;
+          gap: 6px;
+          border-radius: var(--radius-sm);
+          margin: 1px var(--spacing-sm);
+          transition: all var(--transition-fast);
         }
         .hierarchy-item:hover {
           background: var(--bg-tertiary);
         }
         .hierarchy-item.selected {
-          background: var(--accent);
+          background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
           color: white;
+          box-shadow: 0 2px 8px var(--accent-glow);
         }
         .expand-icon {
           width: 16px;
-          font-size: 10px;
+          font-size: 8px;
           text-align: center;
+          opacity: 0.5;
+          transition: transform var(--transition-fast);
+        }
+        .hierarchy-item:hover .expand-icon {
+          opacity: 1;
         }
         .entity-icon {
-          font-size: 12px;
+          font-size: 14px;
+          opacity: 0.8;
+        }
+        .hierarchy-item.selected .entity-icon {
+          opacity: 1;
         }
         .entity-name {
           flex: 1;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          font-weight: 400;
+        }
+        .hierarchy-item.selected .entity-name {
+          font-weight: 500;
         }
         .hierarchy-empty {
-          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: var(--spacing-xl);
           text-align: center;
-          color: var(--text-secondary);
-          font-size: 12px;
+          height: 100%;
+          min-height: 200px;
         }
-        .delete-btn:hover {
-          background: #dc2626 !important;
-          border-color: #dc2626 !important;
+        .empty-icon {
+          color: var(--text-muted);
+          opacity: 0.4;
+          margin-bottom: var(--spacing-lg);
+        }
+        .empty-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--text-secondary);
+          margin-bottom: var(--spacing-sm);
+        }
+        .empty-hint {
+          font-size: 12px;
+          color: var(--text-muted);
+          max-width: 180px;
+          line-height: 1.5;
         }
       `}</style>
     </div>
