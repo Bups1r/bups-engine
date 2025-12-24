@@ -201,9 +201,10 @@ export default function EngineViewport() {
       })
 
       // Disable orbit controls while dragging gizmo
-      renderer.domElement.addEventListener('gizmo-dragging', ((e: CustomEvent) => {
+      const handleGizmoDragging = ((e: CustomEvent) => {
         orbitControls.enabled = !e.detail.dragging
-      }) as EventListener)
+      }) as EventListener
+      renderer.domElement.addEventListener('gizmo-dragging', handleGizmoDragging)
 
       // Start engine
       engine.start()
@@ -243,6 +244,9 @@ export default function EngineViewport() {
       return () => {
         clearInterval(statsInterval)
         resizeObserver?.disconnect()
+        renderer.domElement.removeEventListener('gizmo-dragging', handleGizmoDragging)
+        // Ensure orbit controls are re-enabled on cleanup
+        orbitControls.enabled = true
         engine.offUpdate(updateOrbit)
         gizmo?.dispose()
         orbitControls?.dispose()

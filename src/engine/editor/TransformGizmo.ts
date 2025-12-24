@@ -171,6 +171,12 @@ export class TransformGizmo {
   }
 
   dispose(): void {
+    // Fire a final event to ensure orbit controls are re-enabled
+    const customEvent = new CustomEvent('gizmo-dragging', {
+      detail: { dragging: false }
+    })
+    this.domElement.dispatchEvent(customEvent)
+
     this.detach()
     this.scene.remove(this.controls)
     this.controls.dispose()

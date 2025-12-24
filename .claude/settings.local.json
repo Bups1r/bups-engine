@@ -30,7 +30,10 @@
       "Bash(timeout 10 npm run dev)",
       "Bash(git restore:*)",
       "Bash(dir:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(npm install:*)",
+      "Bash(git remote add:*)",
+      "Bash(git rebase:*)"
     ]
   }
 }
