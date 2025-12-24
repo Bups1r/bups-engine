@@ -55,6 +55,7 @@ export class RenderSystem extends System {
   private postProcessingSettings: PostProcessingSettings
 
   private mainCamera: Camera | null = null
+  private editorCamera: THREE.Camera | null = null
   private meshObjects: Map<number, THREE.Mesh> = new Map()
   private lightObjects: Map<number, THREE.Light> = new Map()
 
@@ -231,13 +232,20 @@ export class RenderSystem extends System {
     // Update camera
     this.mainCamera.update(0)
 
+    // Use editor camera if set, otherwise use main camera
+    const renderCamera = this.editorCamera || this.mainCamera.threeCamera
+
     // Render
     if (this.postProcessingSettings.enabled && this.composer) {
-      this.renderPass!.camera = this.mainCamera.threeCamera
+      this.renderPass!.camera = renderCamera
       this.composer.render()
     } else {
-      this.renderer.render(this.scene, this.mainCamera.threeCamera)
+      this.renderer.render(this.scene, renderCamera)
     }
+  }
+
+  setEditorCamera(camera: THREE.Camera | null): void {
+    this.editorCamera = camera
   }
 
   getScene(): THREE.Scene {

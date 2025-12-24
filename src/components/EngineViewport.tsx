@@ -153,6 +153,9 @@ export default function EngineViewport() {
         scene.add(threeCamera)
       }
 
+      // Set editor camera for rendering
+      engine.renderSystem.setEditorCamera(threeCamera)
+
       // Create orbit controls
       orbitControls = new OrbitControls(threeCamera, renderer.domElement)
       orbitControls.enableDamping = true
@@ -248,6 +251,7 @@ export default function EngineViewport() {
         // Ensure orbit controls are re-enabled on cleanup
         orbitControls.enabled = true
         engine.offUpdate(updateOrbit)
+        engine.renderSystem.setEditorCamera(null)
         gizmo?.dispose()
         orbitControls?.dispose()
         hotReload?.dispose()
