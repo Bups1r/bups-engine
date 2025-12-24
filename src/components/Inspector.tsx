@@ -5,7 +5,7 @@ import { Light } from '../engine/core/Light'
 import { Camera } from '../engine/core/Camera'
 import { RigidBody } from '../engine/physics/RigidBody'
 import { ScriptComponent, scriptTemplates } from '../engine/scripting'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 
 interface Vector3InputProps {
   label: string
@@ -15,7 +15,19 @@ interface Vector3InputProps {
   onBlur?: () => void
 }
 
-function Vector3Input({ label, value, onChange, onFocus, onBlur }: Vector3InputProps) {
+const Vector3Input = memo(function Vector3Input({ label, value, onChange, onFocus, onBlur }: Vector3InputProps) {
+  const handleXChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange({ ...value, x: parseFloat(e.target.value) || 0 })
+  }, [value, onChange])
+
+  const handleYChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange({ ...value, y: parseFloat(e.target.value) || 0 })
+  }, [value, onChange])
+
+  const handleZChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange({ ...value, z: parseFloat(e.target.value) || 0 })
+  }, [value, onChange])
+
   return (
     <div className="vector3-input">
       <label>{label}</label>
@@ -24,7 +36,7 @@ function Vector3Input({ label, value, onChange, onFocus, onBlur }: Vector3InputP
           type="number"
           step="0.1"
           value={value.x.toFixed(2)}
-          onChange={(e) => onChange({ ...value, x: parseFloat(e.target.value) || 0 })}
+          onChange={handleXChange}
           onFocus={onFocus}
           onBlur={onBlur}
         />
@@ -32,7 +44,7 @@ function Vector3Input({ label, value, onChange, onFocus, onBlur }: Vector3InputP
           type="number"
           step="0.1"
           value={value.y.toFixed(2)}
-          onChange={(e) => onChange({ ...value, y: parseFloat(e.target.value) || 0 })}
+          onChange={handleYChange}
           onFocus={onFocus}
           onBlur={onBlur}
         />
@@ -40,16 +52,16 @@ function Vector3Input({ label, value, onChange, onFocus, onBlur }: Vector3InputP
           type="number"
           step="0.1"
           value={value.z.toFixed(2)}
-          onChange={(e) => onChange({ ...value, z: parseFloat(e.target.value) || 0 })}
+          onChange={handleZChange}
           onFocus={onFocus}
           onBlur={onBlur}
         />
       </div>
     </div>
   )
-}
+})
 
-function TransformInspector({ transform }: { transform: Transform }) {
+const TransformInspector = memo(function TransformInspector({ transform }: { transform: Transform }) {
   const [pos, setPos] = useState({ x: 0, y: 0, z: 0 })
   const [rot, setRot] = useState({ x: 0, y: 0, z: 0 })
   const [scale, setScale] = useState({ x: 1, y: 1, z: 1 })
@@ -71,32 +83,32 @@ function TransformInspector({ transform }: { transform: Transform }) {
 
     syncFromTransform()
 
-    // Poll for gizmo updates
-    const interval = setInterval(syncFromTransform, 50)
+    // Poll for gizmo updates - reduced from 50ms to 100ms for better performance
+    const interval = setInterval(syncFromTransform, 100)
     return () => clearInterval(interval)
   }, [transform, isEditing])
 
-  const updatePosition = (value: { x: number; y: number; z: number }) => {
+  const updatePosition = useCallback((value: { x: number; y: number; z: number }) => {
     setPos(value)
     transform.setPosition(value.x, value.y, value.z)
-  }
+  }, [transform])
 
-  const updateRotation = (value: { x: number; y: number; z: number }) => {
+  const updateRotation = useCallback((value: { x: number; y: number; z: number }) => {
     setRot(value)
     transform.setRotation(
       value.x * (Math.PI / 180),
       value.y * (Math.PI / 180),
       value.z * (Math.PI / 180)
     )
-  }
+  }, [transform])
 
-  const updateScale = (value: { x: number; y: number; z: number }) => {
+  const updateScale = useCallback((value: { x: number; y: number; z: number }) => {
     setScale(value)
     transform.setScale(value.x, value.y, value.z)
-  }
+  }, [transform])
 
-  const startEditing = () => setIsEditing(true)
-  const stopEditing = () => setIsEditing(false)
+  const startEditing = useCallback(() => setIsEditing(true), [])
+  const stopEditing = useCallback(() => setIsEditing(false), [])
 
   return (
     <div className="component-inspector">
@@ -124,23 +136,28 @@ function TransformInspector({ transform }: { transform: Transform }) {
       />
     </div>
   )
-}
+})
 
-function LightInspector({ light }: { light: Light }) {
+const LightInspector = memo(function LightInspector({ light }: { light: Light }) {
   const [intensity, setIntensity] = useState(light.intensity)
   const [color, setColor] = useState('#' + light.color.getHexString())
 
-  const updateIntensity = (value: number) => {
+  const updateIntensity = useCallback((value: number) => {
     setIntensity(value)
     light.intensity = value
     light.updateLightProperties()
-  }
+  }, [light])
 
-  const updateColor = (value: string) => {
+  const updateColor = useCallback((value: string) => {
     setColor(value)
     light.color.setStyle(value)
     light.updateLightProperties()
-  }
+  }, [light])
+
+  const handleShadowChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    light.castShadow = e.target.checked
+    light.updateShadowSettings()
+  }, [light])
 
   return (
     <div className="component-inspector">
@@ -170,24 +187,35 @@ function LightInspector({ light }: { light: Light }) {
         <input
           type="checkbox"
           checked={light.castShadow}
-          onChange={(e) => {
-            light.castShadow = e.target.checked
-            light.updateShadowSettings()
-          }}
+          onChange={handleShadowChange}
         />
       </div>
     </div>
   )
-}
+})
 
-function CameraInspector({ camera }: { camera: Camera }) {
+const CameraInspector = memo(function CameraInspector({ camera }: { camera: Camera }) {
   const [fov, setFov] = useState(camera.fov)
 
-  const updateFov = (value: number) => {
+  const updateFov = useCallback((value: number) => {
     setFov(value)
     camera.fov = value
     camera.updateProjectionMatrix()
-  }
+  }, [camera])
+
+  const handleNearChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    camera.near = parseFloat(e.target.value)
+    camera.updateProjectionMatrix()
+  }, [camera])
+
+  const handleFarChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    camera.far = parseFloat(e.target.value)
+    camera.updateProjectionMatrix()
+  }, [camera])
+
+  const handleMainChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    camera.isMain = e.target.checked
+  }, [camera])
 
   return (
     <div className="component-inspector">
@@ -209,10 +237,7 @@ function CameraInspector({ camera }: { camera: Camera }) {
           type="number"
           step="0.1"
           value={camera.near}
-          onChange={(e) => {
-            camera.near = parseFloat(e.target.value)
-            camera.updateProjectionMatrix()
-          }}
+          onChange={handleNearChange}
         />
       </div>
       <div className="inspector-field">
@@ -221,10 +246,7 @@ function CameraInspector({ camera }: { camera: Camera }) {
           type="number"
           step="10"
           value={camera.far}
-          onChange={(e) => {
-            camera.far = parseFloat(e.target.value)
-            camera.updateProjectionMatrix()
-          }}
+          onChange={handleFarChange}
         />
       </div>
       <div className="inspector-field">
@@ -232,14 +254,14 @@ function CameraInspector({ camera }: { camera: Camera }) {
         <input
           type="checkbox"
           checked={camera.isMain}
-          onChange={(e) => { camera.isMain = e.target.checked }}
+          onChange={handleMainChange}
         />
       </div>
     </div>
   )
-}
+})
 
-function ScriptInspector({ script }: { script: ScriptComponent }) {
+const ScriptInspector = memo(function ScriptInspector({ script }: { script: ScriptComponent }) {
   const [name, setName] = useState(script.scriptName)
   const [code, setCode] = useState(script.sourceCode)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -247,29 +269,38 @@ function ScriptInspector({ script }: { script: ScriptComponent }) {
 
   const error = script.getError()
 
-  const handleCodeChange = (newCode: string) => {
+  const handleCodeChange = useCallback((newCode: string) => {
     setCode(newCode)
     script.setSourceCode(newCode)
-  }
+  }, [script])
 
-  const handleNameChange = (newName: string) => {
+  const handleNameChange = useCallback((newName: string) => {
     setName(newName)
     script.scriptName = newName
-  }
+  }, [script])
 
-  const applyTemplate = (templateName: string) => {
+  const applyTemplate = useCallback((templateName: string) => {
     if (templateName && scriptTemplates[templateName as keyof typeof scriptTemplates]) {
       const templateCode = scriptTemplates[templateName as keyof typeof scriptTemplates]
-      handleCodeChange(templateCode)
+      setCode(templateCode)
+      script.setSourceCode(templateCode)
       setSelectedTemplate('')
     }
-  }
+  }, [script])
+
+  const toggleExpanded = useCallback(() => {
+    setIsExpanded(prev => !prev)
+  }, [])
+
+  const handleEnabledChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    script.setEnabled(e.target.checked)
+  }, [script])
 
   return (
     <div className="component-inspector script-inspector">
       <div
         className="component-header"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={toggleExpanded}
         style={{ cursor: 'pointer' }}
       >
         <span>{isExpanded ? '▼' : '▶'} Script: {name}</span>
@@ -322,12 +353,12 @@ function ScriptInspector({ script }: { script: ScriptComponent }) {
         <input
           type="checkbox"
           checked={script.enabled}
-          onChange={(e) => script.setEnabled(e.target.checked)}
+          onChange={handleEnabledChange}
         />
       </div>
     </div>
   )
-}
+})
 
 export default function Inspector() {
   const { selectedEntity } = useEngineStore()
