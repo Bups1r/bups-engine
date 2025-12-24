@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useCallback, useMemo, memo } from 'react'
 import { useAssetStore, Asset, AssetType } from '../stores/assetStore'
 
 const assetTypeIcons: Record<AssetType, string> = {
@@ -36,39 +36,51 @@ interface AssetCardProps {
   onDoubleClick: (asset: Asset) => void
 }
 
-function AssetCard({ asset, isSelected, size, onSelect, onDoubleClick }: AssetCardProps) {
-  const sizeMap = { small: 80, medium: 100, large: 140 }
+const sizeMap = { small: 80, medium: 100, large: 140 } as const
+
+const AssetCard = memo(function AssetCard({ asset, isSelected, size, onSelect, onDoubleClick }: AssetCardProps) {
   const dimension = sizeMap[size]
+
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    onSelect(asset.id, e.ctrlKey || e.metaKey)
+  }, [asset.id, onSelect])
+
+  const handleDoubleClick = useCallback(() => {
+    onDoubleClick(asset)
+  }, [asset, onDoubleClick])
+
+  const handleDragStart = useCallback((e: React.DragEvent) => {
+    e.dataTransfer.setData('application/x-bups-asset', JSON.stringify(asset))
+    e.dataTransfer.effectAllowed = 'copy'
+  }, [asset])
+
+  // Memoize thumbnail style to prevent object recreation
+  const thumbnailStyle = useMemo(() => ({
+    width: dimension,
+    height: dimension,
+    borderColor: isSelected ? assetTypeColors[asset.type] : 'transparent'
+  }), [dimension, isSelected, asset.type])
+
+  const badgeStyle = useMemo(() => ({
+    background: assetTypeColors[asset.type]
+  }), [asset.type])
 
   return (
     <div
       className={`asset-card ${isSelected ? 'selected' : ''}`}
       style={{ width: dimension }}
-      onClick={(e) => onSelect(asset.id, e.ctrlKey || e.metaKey)}
-      onDoubleClick={() => onDoubleClick(asset)}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData('application/x-bups-asset', JSON.stringify(asset))
-        e.dataTransfer.effectAllowed = 'copy'
-      }}
+      onDragStart={handleDragStart}
     >
-      <div
-        className="asset-thumbnail"
-        style={{
-          width: dimension,
-          height: dimension,
-          borderColor: isSelected ? assetTypeColors[asset.type] : 'transparent'
-        }}
-      >
+      <div className="asset-thumbnail" style={thumbnailStyle}>
         {asset.thumbnail ? (
           <img src={asset.thumbnail} alt={asset.name} />
         ) : (
           <div className="asset-icon">{assetTypeIcons[asset.type]}</div>
         )}
-        <div
-          className="asset-type-badge"
-          style={{ background: assetTypeColors[asset.type] }}
-        >
+        <div className="asset-type-badge" style={badgeStyle}>
           {asset.type.charAt(0).toUpperCase()}
         </div>
       </div>
@@ -77,21 +89,35 @@ function AssetCard({ asset, isSelected, size, onSelect, onDoubleClick }: AssetCa
       </div>
     </div>
   )
-}
+})
 
-function AssetListItem({ asset, isSelected, onSelect, onDoubleClick }: Omit<AssetCardProps, 'size'>) {
+const AssetListItem = memo(function AssetListItem({ asset, isSelected, onSelect, onDoubleClick }: Omit<AssetCardProps, 'size'>) {
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    onSelect(asset.id, e.ctrlKey || e.metaKey)
+  }, [asset.id, onSelect])
+
+  const handleDoubleClick = useCallback(() => {
+    onDoubleClick(asset)
+  }, [asset, onDoubleClick])
+
+  const handleDragStart = useCallback((e: React.DragEvent) => {
+    e.dataTransfer.setData('application/x-bups-asset', JSON.stringify(asset))
+    e.dataTransfer.effectAllowed = 'copy'
+  }, [asset])
+
+  const iconStyle = useMemo(() => ({
+    color: assetTypeColors[asset.type]
+  }), [asset.type])
+
   return (
     <div
       className={`asset-list-item ${isSelected ? 'selected' : ''}`}
-      onClick={(e) => onSelect(asset.id, e.ctrlKey || e.metaKey)}
-      onDoubleClick={() => onDoubleClick(asset)}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData('application/x-bups-asset', JSON.stringify(asset))
-        e.dataTransfer.effectAllowed = 'copy'
-      }}
+      onDragStart={handleDragStart}
     >
-      <span className="asset-list-icon" style={{ color: assetTypeColors[asset.type] }}>
+      <span className="asset-list-icon" style={iconStyle}>
         {assetTypeIcons[asset.type]}
       </span>
       <span className="asset-list-name">{asset.name}</span>
@@ -99,7 +125,7 @@ function AssetListItem({ asset, isSelected, onSelect, onDoubleClick }: Omit<Asse
       <span className="asset-list-size">{formatFileSize(asset.size)}</span>
     </div>
   )
-}
+})
 
 export default function AssetBrowser() {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -122,35 +148,50 @@ export default function AssetBrowser() {
     removeAsset
   } = useAssetStore()
 
-  const assets = getFilteredAssets()
+  // Memoize filtered assets to prevent recalculation on every render
+  const assets = useMemo(() => getFilteredAssets(), [getFilteredAssets])
 
-  const handleImport = () => {
+  const handleImport = useCallback(() => {
     fileInputRef.current?.click()
-  }
+  }, [])
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       await importAssets(e.target.files)
       e.target.value = ''
     }
-  }
+  }, [importAssets])
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault()
     if (e.dataTransfer.files.length > 0) {
       await importAssets(e.dataTransfer.files)
     }
-  }
+  }, [importAssets])
 
-  const handleDoubleClick = (asset: Asset) => {
+  const handleDoubleClick = useCallback((asset: Asset) => {
     setPreviewAsset(asset)
-  }
+  }, [])
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     selectedAssets.forEach(id => removeAsset(id))
-  }
+  }, [selectedAssets, removeAsset])
 
-  const typeFilters: (AssetType | 'all')[] = ['all', 'texture', 'model', 'audio', 'script', 'scene', 'material']
+  const handleClearSelection = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) clearSelection()
+  }, [clearSelection])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+  }, [])
+
+  const closePreview = useCallback(() => {
+    setPreviewAsset(null)
+  }, [])
+
+  const typeFilters: (AssetType | 'all')[] = useMemo(() =>
+    ['all', 'texture', 'model', 'audio', 'script', 'scene', 'material'],
+  [])
 
   return (
     <div className="asset-browser">
@@ -237,10 +278,8 @@ export default function AssetBrowser() {
       {/* Asset Grid/List */}
       <div
         className="asset-content"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) clearSelection()
-        }}
-        onDragOver={(e) => e.preventDefault()}
+        onClick={handleClearSelection}
+        onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
         {assets.length === 0 ? (
@@ -287,11 +326,11 @@ export default function AssetBrowser() {
 
       {/* Preview Modal */}
       {previewAsset && (
-        <div className="asset-preview-modal" onClick={() => setPreviewAsset(null)}>
+        <div className="asset-preview-modal" onClick={closePreview}>
           <div className="asset-preview-content" onClick={(e) => e.stopPropagation()}>
             <div className="preview-header">
               <span>{previewAsset.name}</span>
-              <button onClick={() => setPreviewAsset(null)}>×</button>
+              <button onClick={closePreview}>×</button>
             </div>
             <div className="preview-body">
               {previewAsset.type === 'texture' && previewAsset.thumbnail && (
