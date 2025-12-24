@@ -1,10 +1,51 @@
-import { useState, useRef, useEffect } from 'react'
-import { useChatStore } from '../stores/chatStore'
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
+import { useChatStore, ChatMessage } from '../stores/chatStore'
 import { useEngineStore } from '../stores/engineStore'
 import { invoke } from '@tauri-apps/api/tauri'
-import { listen } from '@tauri-apps/api/event'
+import { listen, UnlistenFn } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/api/shell'
 import { contextBuilder } from '../engine/ai/ContextBuilder'
+
+// Memoized message component to prevent re-renders
+interface MessageItemProps {
+  msg: ChatMessage
+  showContextDetails: string | null
+  onToggleContext: (id: string) => void
+}
+
+const MessageItem = memo(function MessageItem({ msg, showContextDetails, onToggleContext }: MessageItemProps) {
+  const handleContextClick = useCallback(() => {
+    onToggleContext(msg.id)
+  }, [msg.id, onToggleContext])
+
+  return (
+    <div className={`chat-message ${msg.role}`}>
+      {msg.hasContext && msg.role === 'user' && (
+        <div
+          className="chat-context-indicator"
+          onClick={handleContextClick}
+        >
+          <span className="chat-context-dot">●</span>
+          Context included
+          <span className="chat-context-arrow">
+            {showContextDetails === msg.id ? '▼' : '▶'}
+          </span>
+        </div>
+      )}
+      {showContextDetails === msg.id && msg.context && (
+        <pre className="chat-context-details">
+          {msg.context}
+        </pre>
+      )}
+      <div>
+        {msg.content}
+        {msg.isStreaming && (
+          <span className="streaming-cursor">|</span>
+        )}
+      </div>
+    </div>
+  )
+})
 
 export default function Chat() {
   const [input, setInput] = useState('')
@@ -39,61 +80,94 @@ export default function Chat() {
     contextBuilder.setSelectedEntity(selectedEntity)
   }, [selectedEntity])
 
-  // Set up streaming event listeners
+  // Store refs for streaming state to avoid dependency issues
+  const streamingIdRef = useRef(streamingMessageId)
+  const messagesRef = useRef(messages)
+
   useEffect(() => {
-    const unlistenChunk = listen<string>('claude-stream-chunk', (event) => {
-      if (streamingMessageId) {
-        const currentMessage = messages.find(m => m.id === streamingMessageId)
-        const newContent = currentMessage
-          ? currentMessage.content + event.payload + '\n'
-          : event.payload + '\n'
-        updateStreamingMessage(streamingMessageId, newContent)
-      }
-    })
+    streamingIdRef.current = streamingMessageId
+  }, [streamingMessageId])
 
-    const unlistenComplete = listen<string>('claude-stream-complete', () => {
-      if (streamingMessageId) {
-        completeStreamingMessage(streamingMessageId)
-      }
-      setIsGenerating(false)
-      setLoading(false)
-    })
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
-    const unlistenError = listen<string>('claude-stream-error', (event) => {
-      if (streamingMessageId) {
-        const currentMessage = messages.find(m => m.id === streamingMessageId)
-        const errorContent = currentMessage
-          ? currentMessage.content + `\n\nError: ${event.payload}`
-          : `Error: ${event.payload}`
-        updateStreamingMessage(streamingMessageId, errorContent)
-        completeStreamingMessage(streamingMessageId)
-      }
-      setIsGenerating(false)
-      setLoading(false)
-    })
+  // Set up streaming event listeners - only once on mount
+  useEffect(() => {
+    const unlistenFns: UnlistenFn[] = []
+    let mounted = true
 
-    const unlistenCancelled = listen('claude-stream-cancelled', () => {
-      if (streamingMessageId) {
-        const currentMessage = messages.find(m => m.id === streamingMessageId)
-        const cancelledContent = currentMessage
-          ? currentMessage.content + '\n\n[Generation cancelled by user]'
-          : '[Generation cancelled by user]'
-        updateStreamingMessage(streamingMessageId, cancelledContent)
-        completeStreamingMessage(streamingMessageId)
+    const setupListeners = async () => {
+      try {
+        const chunkUnlisten = await listen<string>('claude-stream-chunk', (event) => {
+          if (!mounted) return
+          const id = streamingIdRef.current
+          if (id) {
+            const currentMessage = messagesRef.current.find(m => m.id === id)
+            const newContent = currentMessage
+              ? currentMessage.content + event.payload
+              : event.payload
+            updateStreamingMessage(id, newContent)
+          }
+        })
+        if (mounted) unlistenFns.push(chunkUnlisten)
+
+        const completeUnlisten = await listen<string>('claude-stream-complete', () => {
+          if (!mounted) return
+          const id = streamingIdRef.current
+          if (id) {
+            completeStreamingMessage(id)
+          }
+          setIsGenerating(false)
+          setLoading(false)
+        })
+        if (mounted) unlistenFns.push(completeUnlisten)
+
+        const errorUnlisten = await listen<string>('claude-stream-error', (event) => {
+          if (!mounted) return
+          const id = streamingIdRef.current
+          if (id) {
+            const currentMessage = messagesRef.current.find(m => m.id === id)
+            const errorContent = currentMessage
+              ? currentMessage.content + `\n\nError: ${event.payload}`
+              : `Error: ${event.payload}`
+            updateStreamingMessage(id, errorContent)
+            completeStreamingMessage(id)
+          }
+          setIsGenerating(false)
+          setLoading(false)
+        })
+        if (mounted) unlistenFns.push(errorUnlisten)
+
+        const cancelledUnlisten = await listen('claude-stream-cancelled', () => {
+          if (!mounted) return
+          const id = streamingIdRef.current
+          if (id) {
+            const currentMessage = messagesRef.current.find(m => m.id === id)
+            const cancelledContent = currentMessage
+              ? currentMessage.content + '\n\n[Generation cancelled by user]'
+              : '[Generation cancelled by user]'
+            updateStreamingMessage(id, cancelledContent)
+            completeStreamingMessage(id)
+          }
+          setIsGenerating(false)
+          setLoading(false)
+        })
+        if (mounted) unlistenFns.push(cancelledUnlisten)
+      } catch (error) {
+        console.error('Failed to set up event listeners:', error)
       }
-      setIsGenerating(false)
-      setLoading(false)
-    })
+    }
+
+    setupListeners()
 
     return () => {
-      unlistenChunk.then(fn => fn())
-      unlistenComplete.then(fn => fn())
-      unlistenError.then(fn => fn())
-      unlistenCancelled.then(fn => fn())
+      mounted = false
+      unlistenFns.forEach(fn => fn())
     }
-  }, [streamingMessageId, messages, updateStreamingMessage, completeStreamingMessage])
+  }, [updateStreamingMessage, completeStreamingMessage, setLoading])
 
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!input.trim() || isLoading || isGenerating) return
 
     const userMessage = input.trim()
@@ -140,9 +214,9 @@ export default function Chat() {
       setIsGenerating(false)
       setLoading(false)
     }
-  }
+  }, [input, isLoading, isGenerating, includeContext, addMessage, setLoading, startStreamingMessage, updateStreamingMessage, completeStreamingMessage])
 
-  const handleCancel = async () => {
+  const handleCancel = useCallback(async () => {
     if (!isGenerating) return
 
     try {
@@ -150,14 +224,18 @@ export default function Chat() {
     } catch (error) {
       console.error('Failed to cancel stream:', error)
     }
-  }
+  }, [isGenerating])
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSubmit()
     }
-  }
+  }, [handleSubmit])
+
+  const handleToggleContext = useCallback((id: string) => {
+    setShowContextDetails(prev => prev === id ? null : id)
+  }, [])
 
   const contextSummary = contextBuilder.getSummary()
   const hasContext = contextBuilder.hasRelevantContext()
@@ -199,47 +277,12 @@ export default function Chat() {
       )}
       <div className="chat-messages">
         {messages.map((msg) => (
-          <div key={msg.id} className={`chat-message ${msg.role}`}>
-            {msg.hasContext && msg.role === 'user' && (
-              <div style={{
-                fontSize: '0.75rem',
-                color: '#6b7280',
-                marginBottom: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                cursor: 'pointer'
-              }}
-              onClick={() => setShowContextDetails(showContextDetails === msg.id ? null : msg.id)}
-              >
-                <span style={{ color: '#10b981' }}>●</span>
-                Context included
-                <span style={{ fontSize: '0.7rem' }}>
-                  {showContextDetails === msg.id ? '▼' : '▶'}
-                </span>
-              </div>
-            )}
-            {showContextDetails === msg.id && msg.context && (
-              <pre style={{
-                fontSize: '0.7rem',
-                background: '#1f2937',
-                padding: '8px',
-                borderRadius: '4px',
-                marginBottom: '8px',
-                overflow: 'auto',
-                maxHeight: '200px',
-                whiteSpace: 'pre-wrap'
-              }}>
-                {msg.context}
-              </pre>
-            )}
-            <div>
-              {msg.content}
-              {msg.isStreaming && (
-                <span className="streaming-cursor">|</span>
-              )}
-            </div>
-          </div>
+          <MessageItem
+            key={msg.id}
+            msg={msg}
+            showContextDetails={showContextDetails}
+            onToggleContext={handleToggleContext}
+          />
         ))}
         {isLoading && !streamingMessageId && (
           <div className="chat-message assistant" style={{ opacity: 0.7 }}>

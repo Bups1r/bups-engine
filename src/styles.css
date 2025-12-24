@@ -199,6 +199,36 @@ body {
   max-width: 85%;
 }
 
+/* Chat context indicator */
+.chat-context-indicator {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.chat-context-dot {
+  color: #10b981;
+}
+
+.chat-context-arrow {
+  font-size: 0.7rem;
+}
+
+.chat-context-details {
+  font-size: 0.7rem;
+  background: #1f2937;
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  overflow: auto;
+  max-height: 200px;
+  white-space: pre-wrap;
+}
+
 .chat-input-container {
   padding: 16px;
   border-top: 1px solid var(--border-color);
