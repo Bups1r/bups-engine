@@ -6,13 +6,13 @@
 mod claude;
 
 use claude::{send_message_to_claude, stream_message_to_claude};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::{Manager, State, Window};
-use tokio::sync::Mutex;
+use tauri::{State, Window};
 
-// Global state for cancellation
-struct CancelState {
-    flag: Arc<Mutex<bool>>,
+// Global state for cancellation - using AtomicBool for lock-free performance
+pub struct CancelState {
+    pub flag: AtomicBool,
 }
 
 #[tauri::command]
@@ -24,22 +24,17 @@ async fn send_to_claude(message: String) -> Result<String, String> {
 async fn stream_to_claude(
     window: Window,
     message: String,
-    cancel_state: State<'_, Arc<Mutex<CancelState>>>,
+    cancel_state: State<'_, Arc<CancelState>>,
 ) -> Result<String, String> {
-    // Reset cancel flag
-    let cancel_flag = {
-        let mut state = cancel_state.lock().await;
-        *state.flag.lock().await = false;
-        Arc::clone(&state.flag)
-    };
+    // Reset cancel flag atomically
+    cancel_state.flag.store(false, Ordering::SeqCst);
 
-    stream_message_to_claude(window, message, cancel_flag).await
+    stream_message_to_claude(window, message, Arc::clone(&cancel_state)).await
 }
 
 #[tauri::command]
-async fn cancel_stream(cancel_state: State<'_, Arc<Mutex<CancelState>>>) -> Result<(), String> {
-    let state = cancel_state.lock().await;
-    *state.flag.lock().await = true;
+async fn cancel_stream(cancel_state: State<'_, Arc<CancelState>>) -> Result<(), String> {
+    cancel_state.flag.store(true, Ordering::SeqCst);
     Ok(())
 }
 
@@ -89,9 +84,9 @@ async fn file_exists(path: String) -> Result<bool, String> {
 }
 
 fn main() {
-    let cancel_state = Arc::new(Mutex::new(CancelState {
-        flag: Arc::new(Mutex::new(false)),
-    }));
+    let cancel_state = Arc::new(CancelState {
+        flag: AtomicBool::new(false),
+    });
 
     tauri::Builder::default()
         .manage(cancel_state)
