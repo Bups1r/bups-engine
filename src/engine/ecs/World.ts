@@ -31,6 +31,15 @@ export class World {
     for (const tag of entity.getTags()) {
       this.indexEntityTag(entity, tag)
     }
+
+    // Emit world change event for UI updates
+    this.emitWorldChanged()
+  }
+
+  private emitWorldChanged(): void {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('engine:world-changed'))
+    }
   }
 
   removeEntity(entity: Entity): void {
@@ -46,6 +55,9 @@ export class World {
     for (const tag of entity.getTags()) {
       this.unindexEntityTag(entity, tag)
     }
+
+    // Emit world change event for UI updates
+    this.emitWorldChanged()
   }
 
   getEntity(id: number): Entity | undefined {

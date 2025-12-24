@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, memo } from 'react'
 import { useEngineStore } from '../stores/engineStore'
 import { Entity } from '../engine/ecs/Entity'
 import { commandHistory, CreateEntityCommand, DeleteEntityCommand } from '../engine/editor'
@@ -6,28 +6,35 @@ import { commandHistory, CreateEntityCommand, DeleteEntityCommand } from '../eng
 interface HierarchyItemProps {
   entity: Entity
   depth: number
+  selectedEntityId: string | null
+  onSelect: (entity: Entity) => void
 }
 
-function HierarchyItem({ entity, depth }: HierarchyItemProps) {
+const HierarchyItem = memo(function HierarchyItem({ entity, depth, selectedEntityId, onSelect }: HierarchyItemProps) {
   const [expanded, setExpanded] = useState(true)
-  const { selectedEntity, selectEntity } = useEngineStore()
-  const isSelected = selectedEntity?.id === entity.id
+  const isSelected = selectedEntityId === entity.id
   const hasChildren = entity.children.length > 0
+
+  const handleToggleExpand = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    setExpanded(prev => !prev)
+  }, [])
+
+  const handleSelect = useCallback(() => {
+    onSelect(entity)
+  }, [entity, onSelect])
 
   return (
     <>
       <div
         className={`hierarchy-item ${isSelected ? 'selected' : ''}`}
         style={{ paddingLeft: `${8 + depth * 16}px` }}
-        onClick={() => selectEntity(entity)}
+        onClick={handleSelect}
       >
         {hasChildren && (
           <span
             className="expand-icon"
-            onClick={(e) => {
-              e.stopPropagation()
-              setExpanded(!expanded)
-            }}
+            onClick={handleToggleExpand}
           >
             {expanded ? '▼' : '▶'}
           </span>
@@ -39,15 +46,27 @@ function HierarchyItem({ entity, depth }: HierarchyItemProps) {
         <span className="entity-name">{entity.name}</span>
       </div>
       {expanded && entity.children.map((child) => (
-        <HierarchyItem key={child.id} entity={child} depth={depth + 1} />
+        <HierarchyItem
+          key={child.id}
+          entity={child}
+          depth={depth + 1}
+          selectedEntityId={selectedEntityId}
+          onSelect={onSelect}
+        />
       ))}
     </>
   )
-}
+})
 
 export default function Hierarchy() {
   const { engine, selectedEntity, selectEntity } = useEngineStore()
   const [entities, setEntities] = useState<Entity[]>([])
+  const [, forceUpdate] = useState(0)
+
+  // Stable callback for selecting entities
+  const handleSelectEntity = useCallback((entity: Entity) => {
+    selectEntity(entity)
+  }, [selectEntity])
 
   useEffect(() => {
     if (!engine) return
@@ -56,10 +75,26 @@ export default function Hierarchy() {
       setEntities(engine.world.getRootEntities())
     }
 
+    // Initial load
     updateEntities()
-    const interval = setInterval(updateEntities, 500)
 
-    return () => clearInterval(interval)
+    // Subscribe to world changes via custom event
+    const handleWorldChange = () => {
+      updateEntities()
+      forceUpdate(n => n + 1)
+    }
+
+    // Listen for entity changes
+    window.addEventListener('engine:world-changed', handleWorldChange)
+
+    // Fallback: poll less frequently (2 seconds instead of 500ms)
+    // This catches any changes not emitted as events
+    const interval = setInterval(updateEntities, 2000)
+
+    return () => {
+      window.removeEventListener('engine:world-changed', handleWorldChange)
+      clearInterval(interval)
+    }
   }, [engine])
 
   const handleAddEntity = (type: string) => {
@@ -149,7 +184,13 @@ export default function Hierarchy() {
       </div>
       <div className="hierarchy-list">
         {entities.map((entity) => (
-          <HierarchyItem key={entity.id} entity={entity} depth={0} />
+          <HierarchyItem
+            key={entity.id}
+            entity={entity}
+            depth={0}
+            selectedEntityId={selectedEntity?.id ?? null}
+            onSelect={handleSelectEntity}
+          />
         ))}
         {entities.length === 0 && (
           <div className="hierarchy-empty">
